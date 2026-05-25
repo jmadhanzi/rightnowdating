@@ -198,3 +198,28 @@ export async function verifyPhotoMatch(selfie: string): Promise<{ matched: boole
   const { data } = await api.post('/verify/photo-match', { selfie });
   return data;
 }
+
+// --- Profile ---
+export interface UpdateProfilePayload {
+  displayName?: string;
+  age?: number;
+  avatar_emoji?: string;
+  bio?: string;
+  vibe?: Vibe;
+}
+export async function updateProfile<T = unknown>(payload: UpdateProfilePayload): Promise<T> {
+  const { data } = await api.patch<T>('/profile', payload);
+  return data;
+}
+export async function getProfile<T = unknown>(): Promise<T> {
+  const { data } = await api.get<T>('/profile');
+  return data;
+}
+
+// --- Notifications ---
+export async function subscribePush(
+  subscription: PushSubscriptionJSON,
+): Promise<{ success: boolean }> {
+  const { data } = await api.post('/notifications/subscribe', { subscription });
+  return data;
+}

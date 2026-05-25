@@ -8,6 +8,8 @@ import { paymentRoutes } from './payments.route.js';
 import { sparkRoutes } from './sparks.route.js';
 import { liveRoutes } from './live.route.js';
 import { boostRoutes } from './boost.route.js';
+import { profileRoutes } from './profile.route.js';
+import { notificationRoutes } from './notifications.route.js';
 
 /**
  * Registers all HTTP routes. Feature routers (sessions, matches, chat) are
@@ -24,6 +26,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(sparkRoutes);
   await app.register(liveRoutes);
   await app.register(boostRoutes);
+  await app.register(profileRoutes);
+  await app.register(notificationRoutes);
 
   // Versioned application API.
   await app.register(
