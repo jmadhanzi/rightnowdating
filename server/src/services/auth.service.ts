@@ -8,6 +8,7 @@ import { logger } from '../utils/logger.js';
 import { redis } from '../db/redis.js';
 import { pool, transaction } from '../db/index.js';
 import { sendSms } from './twilio.service.js';
+import { generateUniqueReferralCode } from './referrals.service.js';
 import { badRequest, tooManyRequests, unauthorized } from '../utils/http-error.js';
 
 // --- Tunables ---------------------------------------------------------------
@@ -117,12 +118,13 @@ async function upsertUser(phone: string): Promise<{ userId: string; isNewUser: b
   }
 
   // New user: create the account + an empty profile atomically.
+  const referralCode = await generateUniqueReferralCode();
   const userId = await transaction(async (client) => {
     const inserted = await client.query<{ id: string }>(
-      `INSERT INTO users (phone, is_verified, verification_tier, last_active)
-       VALUES ($1, true, 'phone', NOW())
+      `INSERT INTO users (phone, referral_code, is_verified, verification_tier, last_active)
+       VALUES ($1, $2, true, 'phone', NOW())
        RETURNING id`,
-      [phone],
+      [phone, referralCode],
     );
     const id = inserted.rows[0]!.id;
     await client.query(

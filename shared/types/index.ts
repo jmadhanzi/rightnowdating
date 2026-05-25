@@ -197,6 +197,9 @@ export interface ServerToClientEvents {
   'session:expiring': (payload: { sessionId: string; expiresAt: string }) => void;
   'trust:updated': (payload: { score: number }) => void;
   'verification:complete': (payload: { type: string }) => void;
+  'boost:activated': (payload: { sessionId: string; boostEndsAt: string }) => void;
+  'reward:granted': (payload: { tier: number; reward: string }) => void;
+  notification: (payload: { title: string; body: string }) => void;
   'app:error': (payload: { event: string; message: string }) => void;
 }
 

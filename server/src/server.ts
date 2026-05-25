@@ -4,6 +4,7 @@ import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
 import { closeQueues } from './services/queue.service.js';
+import { ensureStripeCatalog } from './services/stripe.service.js';
 
 async function start(): Promise<void> {
   const app = await buildApp();
@@ -12,6 +13,9 @@ async function start(): Promise<void> {
   // even before Postgres/Redis are up locally.
   await verifyDatabase().catch((err) => app.log.warn({ err }, 'Postgres not reachable at boot'));
   await verifyRedis().catch((err) => app.log.warn({ err }, 'Redis not reachable at boot'));
+  await ensureStripeCatalog().catch((err) =>
+    app.log.warn({ err }, 'Stripe catalog setup skipped/failed'),
+  );
 
   // Attach Socket.io to Fastify's underlying HTTP server.
   const io = createSocketServer(app.server);

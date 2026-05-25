@@ -19,3 +19,11 @@ export function emitToUser<E extends keyof ServerToClientEvents>(
 ): void {
   io?.to(`user:${userId}`).emit(event, ...args);
 }
+
+export function emitToCity<E extends keyof ServerToClientEvents>(
+  city: string,
+  event: E,
+  ...args: Parameters<ServerToClientEvents[E]>
+): void {
+  io?.to(`city:${city}`).emit(event, ...args);
+}

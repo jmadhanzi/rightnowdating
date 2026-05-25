@@ -17,6 +17,7 @@ import { applyFuzzyLocation, getNearbyUsers } from '../services/location.service
 import { suggestVenues } from '../services/venues.service.js';
 import { scanMessage } from '../services/aiSafety.service.js';
 import { scheduleCheckin } from '../services/safetyScheduler.service.js';
+import { recordReferredFirstDate } from '../services/referrals.service.js';
 import type { RNServer, RNSocket, SocketData } from './types.js';
 import { setIO } from './emitter.js';
 
@@ -405,15 +406,31 @@ async function handleMessageSend(
 
 async function handleCheckinConfirm(socket: RNSocket, payload: { matchId: string }): Promise<void> {
   const userId = socket.data.userId;
-  await pool.query(
+  const { rows } = await pool.query<{
+    user1_id: string;
+    user2_id: string;
+    user1_confirmed: boolean;
+    user2_confirmed: boolean;
+  }>(
     `UPDATE matches
         SET user1_confirmed = CASE WHEN user1_id = $2 THEN true ELSE user1_confirmed END,
             user2_confirmed = CASE WHEN user2_id = $2 THEN true ELSE user2_confirmed END
-      WHERE id = $1`,
+      WHERE id = $1
+      RETURNING user1_id, user2_id, user1_confirmed, user2_confirmed`,
     [payload.matchId, userId],
   );
   // Clear the pending safety check-in so escalation won't fire.
   await redis.del(checkinPendingKey(payload.matchId, userId));
+
+  // When both confirm, the date is complete — mark it and credit referrals.
+  const match = rows[0];
+  if (match && match.user1_confirmed && match.user2_confirmed) {
+    await pool.query("UPDATE matches SET status = 'met' WHERE id = $1 AND status = 'active'", [
+      payload.matchId,
+    ]);
+    await recordReferredFirstDate(match.user1_id);
+    await recordReferredFirstDate(match.user2_id);
+  }
 }
 
 // ---------------------------------------------------------------------------

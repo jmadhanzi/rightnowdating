@@ -228,6 +228,41 @@ scheduled for meetup + 30 min; unanswered after 10 min it SMSes trusted
 contacts, and a second check-in runs at + 60 min. Failed jobs are persisted to
 `job_failures`.
 
+## Referrals & payments
+
+**Referrals** (`routes/referrals.route.ts`, `services/referrals.service.ts`):
+every user gets a unique 8-char code at registration.
+
+| Endpoint                | Purpose                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `GET /referrals/stats`  | Dashboard: code, link, totals, tiers, city leaderboard, rank |
+| `POST /referrals/track` | Attribute the authed user to a referral code (once)          |
+
+Rewards trigger on a referred user's first completed date (both confirm
+check-in → match `met`): 1 ref → boost credit, 2 → 2nd credit, 3 → Plus 7-day
+trial, 5 → VIP 30-day, 10 → VIP 365-day. A `referral_rewards` ledger grants
+each tier once; rewards push a `reward:granted` notification.
+
+**Payments** (`routes/payments.route.ts`, `services/stripe.service.ts`):
+products/prices (RIGHTNOW+ $14.99/mo · $69/yr, VIP $29.99/mo · $137/yr, Pin
+Boost $2.99) are created on startup if missing.
+
+| Endpoint                              | Purpose                                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| `POST /payments/create-subscription`  | SetupIntent → `{ clientSecret, customerId }`                       |
+| `POST /payments/confirm-subscription` | Subscribe with 3-day trial, cache plan                             |
+| `POST /payments/boost`                | $2.99 PaymentIntent for a pin boost                                |
+| `POST /payments/boost-confirm`        | Verify payment, activate boost (1h), emit `boost:activated`        |
+| `POST /payments/cancel`               | Cancel at period end                                               |
+| `POST /payments/webhook`              | (no auth) sync subscriptions, downgrades, boosts, payment failures |
+
+**Plans & gating** (`middleware/planCheck.ts`, `services/plan.service.ts`):
+`free < plus < vip`, resolved from a Redis cache (`plan:{userId}`) falling back
+to the DB. `requirePlan(min)` returns 403 `{ upgradeRequired, currentPlan,
+requiredPlan }`. Gated: `GET /sparks/who-viewed` (plus), `POST /live/create`
+3rd+/day (plus), `POST /boost/use-credit` (vip), `POST /live/invisible-mode`
+(vip).
+
 ## Testing
 
 The server suite (Jest + Supertest) covers the auth flow and the trust-score /
