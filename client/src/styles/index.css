@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-s0 text-on-surface font-sans antialiased;
+    margin: 0;
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  /* Glassmorphic panel used across map overlays and modals. */
+  .glass-panel {
+    background: rgba(18, 18, 18, 0.7);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
