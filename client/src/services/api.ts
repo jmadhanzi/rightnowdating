@@ -223,3 +223,41 @@ export async function subscribePush(
   const { data } = await api.post('/notifications/subscribe', { subscription });
   return data;
 }
+
+// --- Matches & AI ---
+export interface MatchVenue {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  isSafeZone: boolean;
+}
+export interface MatchData {
+  matchId: string;
+  status: string;
+  sparkId: string | null;
+  createdAt: string;
+  meetupTime: string | null;
+  expiresAt: string;
+  distanceMiles: number;
+  other: {
+    userId: string;
+    displayName: string;
+    age: number | null;
+    emoji: string;
+    vibe: Vibe;
+    trustScore: number;
+    verified: boolean;
+    interests: string[];
+  };
+  venue: MatchVenue | null;
+}
+export async function getMatch(matchId: string): Promise<MatchData> {
+  const { data } = await api.get<MatchData>(`/matches/${matchId}`);
+  return data;
+}
+export async function getIcebreaker(matchId: string): Promise<{ icebreaker: string }> {
+  const { data } = await api.get('/ai/icebreaker', { params: { matchId } });
+  return data;
+}

@@ -26,9 +26,13 @@ interface ProfileRow {
 
 export async function profileRoutes(app: FastifyInstance): Promise<void> {
   app.get('/profile', { preHandler: authenticateToken }, async (request, reply) => {
-    const { rows } = await pool.query<ProfileRow>(
+    const { rows } = await pool.query(
       `SELECT p.id, p.display_name, p.age, p.avatar_emoji, p.bio, p.city, p.preferred_vibes,
-              COALESCE(t.score, 50) AS trust_score
+              COALESCE(t.score, 50) AS trust_score,
+              COALESCE(t.total_dates, 0) AS total_dates,
+              COALESCE(t.average_rating, 0) AS average_rating,
+              COALESCE(t.show_up_rate, 1) AS show_up_rate,
+              COALESCE(t.verified_id, false) AS verified_id
          FROM profiles p
          LEFT JOIN trust_scores t ON t.user_id = p.id
         WHERE p.id = $1`,

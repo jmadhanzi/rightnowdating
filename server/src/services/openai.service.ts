@@ -12,6 +12,51 @@ function getClient(): OpenAI {
   return client;
 }
 
+const FALLBACK_ICEBREAKERS = [
+  'You both picked tonight over staying in — that already says a lot. What made you go live?',
+  'No small talk: what is the best spontaneous night you have had in this city?',
+  'You have ~7 minutes. What is one thing worth leaving the house for right now?',
+  'Coffee or chaos — what kind of night are you actually in the mood for?',
+];
+
+/**
+ * Generate a single playful icebreaker for two people about to meet. Falls back
+ * to a canned line when OpenAI is unconfigured or errors.
+ */
+export async function generateIcebreaker(context: {
+  myVibe?: string;
+  theirVibe?: string;
+  theirName?: string;
+}): Promise<string> {
+  const fallback =
+    FALLBACK_ICEBREAKERS[Math.floor(Math.random() * FALLBACK_ICEBREAKERS.length)] ??
+    FALLBACK_ICEBREAKERS[0]!;
+  if (!env.OPENAI_API_KEY) return fallback;
+  try {
+    const completion = await getClient().chat.completions.create({
+      model: env.OPENAI_MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You write ONE short, warm, slightly playful icebreaker (max 22 words) for two ' +
+            'people about to meet in person via a spontaneous dating app. No emojis, no quotes.',
+        },
+        {
+          role: 'user',
+          content: `Their name is ${context.theirName ?? 'they'}. My vibe: ${
+            context.myVibe ?? 'drinks'
+          }. Their vibe: ${context.theirVibe ?? 'drinks'}.`,
+        },
+      ],
+    });
+    return completion.choices[0]?.message?.content?.trim() || fallback;
+  } catch (err) {
+    logger.warn({ err }, 'icebreaker generation failed; using fallback');
+    return fallback;
+  }
+}
+
 /** Score a profile bio 0-100 and return a short suggestion. */
 export async function scoreBio(bio: string): Promise<{ score: number; tip: string }> {
   const completion = await getClient().chat.completions.create({

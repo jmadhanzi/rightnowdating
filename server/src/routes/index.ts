@@ -10,10 +10,12 @@ import { liveRoutes } from './live.route.js';
 import { boostRoutes } from './boost.route.js';
 import { profileRoutes } from './profile.route.js';
 import { notificationRoutes } from './notifications.route.js';
+import { matchRoutes } from './matches.route.js';
+import { aiRoutes } from './ai.route.js';
 
 /**
- * Registers all HTTP routes. Feature routers (sessions, matches, chat) are
- * mounted here under the /api prefix as they are built out.
+ * Registers all HTTP routes. Feature routers are mounted here; the versioned
+ * /api/v1 prefix is reserved for future additions.
  */
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Unprefixed infra + auth endpoints.
@@ -28,13 +30,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(boostRoutes);
   await app.register(profileRoutes);
   await app.register(notificationRoutes);
+  await app.register(matchRoutes);
+  await app.register(aiRoutes);
 
-  // Versioned application API.
+  // Versioned application API (reserved).
   await app.register(
     async (api) => {
       api.get('/', async () => ({ name: 'RIGHTNOW API', version: 'v1' }));
-      // await api.register(sessionRoutes);
-      // await api.register(matchRoutes);
     },
     { prefix: '/api/v1' },
   );

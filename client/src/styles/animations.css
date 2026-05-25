@@ -182,3 +182,16 @@
 .anim-float {
   animation: float 2.4s ease-in-out infinite;
 }
+
+/* Scan line sweeping along an edge. */
+@keyframes scan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.anim-scan {
+  animation: scan 2.6s linear infinite;
+}
