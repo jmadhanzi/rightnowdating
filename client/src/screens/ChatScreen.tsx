@@ -157,15 +157,15 @@ export default function ChatScreen(): React.JSX.Element {
 
     // Replace the optimistic entry when the server echoes the message back.
     const socket = getSocket();
+    // The server echoes message:received back to the sender with the real UUID.
+    // Replace the optimistic placeholder (localId) once that echo arrives.
     const replaceOptimistic = (msg: { id: string; matchId: string; senderId: string; content: string; createdAt: string }): void => {
       if (msg.matchId !== matchId || msg.senderId !== myId || msg.content !== content) return;
-      // Remove the local placeholder and let the real message take its place.
       useChatStore.getState().replaceMessage(matchId, localId, { ...msg });
       socket.off('message:received', replaceOptimistic);
     };
     socket.on('message:received', replaceOptimistic);
-
-    // Safety net: remove the listener after 10 s regardless.
+    // Safety net: clean up listener after 10 s regardless.
     setTimeout(() => socket.off('message:received', replaceOptimistic), 10_000);
   };
 

@@ -387,17 +387,21 @@ async function handleMessageSend(
     return;
   }
 
-  const match = await pool.query<{ user1_id: string; user2_id: string }>(
-    'SELECT user1_id, user2_id FROM matches WHERE id = $1',
+  const match = await pool.query<{ user1_id: string; user2_id: string; status: string }>(
+    "SELECT user1_id, user2_id, status FROM matches WHERE id = $1",
     [matchId],
   );
   if (match.rows.length === 0) {
     socket.emit('app:error', { event: 'message:send', message: 'Match not found.' });
     return;
   }
-  const { user1_id, user2_id } = match.rows[0]!;
+  const { user1_id, user2_id, status: matchStatus } = match.rows[0]!;
   if (senderId !== user1_id && senderId !== user2_id) {
     socket.emit('app:error', { event: 'message:send', message: 'You are not part of this match.' });
+    return;
+  }
+  if (matchStatus !== 'active' && matchStatus !== 'met') {
+    socket.emit('app:error', { event: 'message:send', message: 'This match is no longer active.' });
     return;
   }
   const recipientId = senderId === user1_id ? user2_id : user1_id;
@@ -423,13 +427,18 @@ async function handleMessageSend(
     return;
   }
 
-  io.to(userRoom(recipientId)).emit('message:received', {
+  const messagePayload = {
     id: message.id,
     matchId,
     senderId,
     content: trimmed,
     createdAt: new Date(message.created_at).toISOString(),
-  });
+  };
+
+  // Emit to recipient and echo back to sender (so the sender's optimistic
+  // message can be replaced by the server-confirmed ID).
+  io.to(userRoom(recipientId)).emit('message:received', messagePayload);
+  socket.emit('message:received', messagePayload);
 
   if (scan.shouldWarn) {
     await pool.query('UPDATE messages SET is_flagged = true, ai_safety_score = $1 WHERE id = $2', [

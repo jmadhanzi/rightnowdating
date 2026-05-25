@@ -43,6 +43,48 @@ function bindListeners(s: RightnowSocket): void {
   s.on('spark:expired', ({ sparkId }) => useMatchStore.getState().removeSpark(sparkId));
   s.on('match:created', (match) => useMatchStore.getState().setActiveMatch(match));
   s.on('message:received', (msg) => useChatStore.getState().addMessage(msg.matchId, msg));
+
+  // On every (re)connect: clear stale map pins from before the disconnect,
+  // because we'll receive a fresh snapshot when the server processes go:live.
+  // Also recover any active match the user may have missed while offline.
+  s.on('connect', () => {
+    useMapStore.getState().clearPins();
+    recoverActiveMatch();
+  });
+}
+
+/**
+ * Poll the /chats REST endpoint to find any active match that was created
+ * while the socket was disconnected, so the user isn't left stranded on the
+ * map screen when they were supposed to be navigating to a venue.
+ */
+async function recoverActiveMatch(): Promise<void> {
+  // Avoid importing api.ts at module level (circular dep risk). Use fetch directly.
+  const token = useAuthStore.getState().accessToken;
+  if (!token) return;
+  const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  try {
+    const res = await fetch(`${baseURL}/chats`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      conversations: { matchId: string; isActive: boolean; meetupTime: string | null }[];
+    };
+    const active = data.conversations.find((c) => c.isActive);
+    if (active && !useMatchStore.getState().activeMatch) {
+      useMatchStore.getState().setActiveMatch({
+        matchId: active.matchId,
+        venue: null,
+        meetupTime: active.meetupTime ?? new Date(Date.now() + 20 * 60 * 1000).toISOString(),
+        countdown: active.meetupTime
+          ? Math.max(0, Math.round((Date.parse(active.meetupTime) - Date.now()) / 1000))
+          : 1200,
+      });
+    }
+  } catch {
+    // Non-fatal — user can still navigate manually.
+  }
 }
 
 export function connectSocket(): RightnowSocket {

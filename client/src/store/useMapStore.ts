@@ -22,6 +22,8 @@ interface MapState {
   setMySession: (session: MySession | null) => void;
   setCityCount: (count: number) => void;
   clearExpired: () => void;
+  /** Remove all pins — called on socket reconnect before the server resends a fresh snapshot. */
+  clearPins: () => void;
 }
 
 export const useMapStore = create<MapState>((set) => ({
@@ -57,4 +59,6 @@ export const useMapStore = create<MapState>((set) => ({
         nearbyPins: state.nearbyPins.filter((p) => p.expiresAt === undefined || p.expiresAt > now),
       };
     }),
+
+  clearPins: () => set({ nearbyPins: [], cityCount: 0 }),
 }));

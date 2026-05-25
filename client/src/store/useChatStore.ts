@@ -66,11 +66,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const convo = state.conversations[matchId];
       if (!convo) return state;
-      const messages = convo.messages.map((m) => (m.id === localId ? confirmed : m));
-      // Guard: if the confirmed id already exists (rare race), just remove the placeholder.
-      const deduped = messages.filter(
-        (m, i) => m.id !== confirmed.id || messages.indexOf(m) === i,
-      );
+      // Replace the placeholder, then deduplicate by ID (the real message may
+      // have already been added by the global message:received listener).
+      const replaced = convo.messages.map((m) => (m.id === localId ? confirmed : m));
+      const seen = new Set<string>();
+      const deduped = replaced.filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
       return { conversations: { ...state.conversations, [matchId]: { ...convo, messages: deduped } } };
     }),
 }));
