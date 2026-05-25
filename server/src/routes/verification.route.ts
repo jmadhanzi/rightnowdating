@@ -8,7 +8,7 @@ import { pool } from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { badRequest } from '../utils/http-error.js';
 import { createIdentitySession, constructWebhookEvent } from '../services/stripe.service.js';
-import { comparePhotos } from '../services/openai.service.js';
+import { comparePhotos } from '../services/ai.service.js';
 import { recalculateTrustScore } from '../services/trustScore.service.js';
 import { emitToUser } from '../socket/emitter.js';
 

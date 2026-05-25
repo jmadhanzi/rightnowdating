@@ -5,6 +5,7 @@ import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
 import { closeQueues } from './services/queue.service.js';
 import { ensureStripeCatalog } from './services/stripe.service.js';
+import { startDemandCron, stopDemandCron } from './services/demandPrediction.service.js';
 
 async function start(): Promise<void> {
   const app = await buildApp();
@@ -23,6 +24,7 @@ async function start(): Promise<void> {
   try {
     await app.listen({ port: env.PORT, host: env.HOST });
     app.log.info(`RIGHTNOW API listening on http://${env.HOST}:${env.PORT}`);
+    startDemandCron();
   } catch (err) {
     app.log.error({ err }, 'Failed to start server');
     process.exit(1);
@@ -30,6 +32,7 @@ async function start(): Promise<void> {
 
   const shutdown = async (signal: string): Promise<void> => {
     app.log.info({ signal }, 'Shutting down...');
+    stopDemandCron();
     io.close();
     await app.close();
     await closeQueues().catch(() => undefined);

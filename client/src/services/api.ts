@@ -266,6 +266,10 @@ export async function getIcebreaker(matchId: string): Promise<{ icebreaker: stri
   const { data } = await api.get('/ai/icebreaker', { params: { matchId } });
   return data;
 }
+export async function scoreBio(bio: string): Promise<{ score: number; suggestion: string }> {
+  const { data } = await api.post('/ai/profile-score', { bio });
+  return data;
+}
 
 // --- Chats ---
 export interface Conversation {

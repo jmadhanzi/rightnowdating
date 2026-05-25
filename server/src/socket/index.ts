@@ -373,13 +373,13 @@ async function handleMessageSend(
   // Two-stage AI safety scan (moderation → GPT). Fast and fail-open.
   const scan = await scanMessage(content, matchId, senderId);
 
-  if (scan.action === 'block') {
+  if (!scan.isSafe) {
     await pool.query(
       'UPDATE messages SET is_flagged = true, ai_safety_score = $1, deleted_at = NOW() WHERE id = $2',
       [scan.score, message.id],
     );
     socket.emit('message:blocked', {
-      reason: scan.concern ?? 'This message was blocked for safety.',
+      reason: scan.reason ?? 'This message was blocked for safety.',
     });
     return;
   }
@@ -392,14 +392,14 @@ async function handleMessageSend(
     createdAt: new Date(message.created_at).toISOString(),
   });
 
-  if (scan.action === 'flag') {
+  if (scan.shouldWarn) {
     await pool.query('UPDATE messages SET is_flagged = true, ai_safety_score = $1 WHERE id = $2', [
       scan.score,
       message.id,
     ]);
     socket.emit('message:flagged', {
       messageId: message.id,
-      reason: scan.concern ?? 'This message was flagged.',
+      reason: scan.reason ?? 'This message was flagged.',
     });
   }
 }

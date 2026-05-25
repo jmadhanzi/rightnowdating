@@ -44,6 +44,8 @@ const envSchema = z.object({
   VAPID_SUBJECT: z.string().default('mailto:hello@rightnow.app'),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
+  ALERT_EMAIL: z.string().email().optional(),
+  AI_DAILY_BUDGET_USD: z.coerce.number().positive().default(20),
   CLOUDINARY_CLOUD_NAME: z.string().optional(),
   CLOUDINARY_API_KEY: z.string().optional(),
   CLOUDINARY_API_SECRET: z.string().optional(),

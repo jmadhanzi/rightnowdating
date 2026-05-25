@@ -1,45 +1,51 @@
 import { pool } from '../db/index.js';
 import { logger } from '../utils/logger.js';
-import { moderateContent, analyzeMessageSafety } from './openai.service.js';
-
-export type ScanAction = 'allow' | 'flag' | 'block';
+import { moderateContent, analyzeMessageSafety } from './ai.service.js';
 
 export interface ScanResult {
-  action: ScanAction;
-  safe: boolean;
-  score: number; // 0 (violation) … 1 (safe)
-  concern: string | null;
+  isSafe: boolean;
+  score: number; // 0 (danger) … 1 (safe)
+  reason: string | null;
+  shouldWarn: boolean;
 }
 
 // Moderation category score above which we escalate to GPT.
-const MODERATION_ESCALATE = 0.3;
-// GPT safety-score thresholds.
+const ESCALATE = 0.3;
 const BLOCK_BELOW = 0.3;
-const FLAG_BELOW = 0.6;
+const WARN_BELOW = 0.6;
 
-async function logModeration(
-  matchId: string,
-  senderId: string,
-  content: string,
-  action: Exclude<ScanAction, 'allow'>,
-  score: number,
-  concern: string | null,
-  source: 'moderation' | 'gpt',
-): Promise<void> {
+async function logScan(params: {
+  matchId: string;
+  senderId: string;
+  content: string;
+  action: 'flagged' | 'blocked';
+  score: number;
+  concern: string | null;
+  source: 'moderation' | 'gpt';
+  wasBlocked: boolean;
+}): Promise<void> {
   await pool
     .query(
-      `INSERT INTO moderation_logs (match_id, sender_id, content, action, score, concern, source)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [matchId, senderId, content, action, score, concern, source],
+      `INSERT INTO moderation_logs (match_id, sender_id, content, action, score, concern, source, was_blocked)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        params.matchId,
+        params.senderId,
+        params.content,
+        params.action,
+        params.score,
+        params.concern,
+        params.source,
+        params.wasBlocked,
+      ],
     )
     .catch((err) => logger.error({ err }, 'failed to write moderation log'));
 }
 
 /**
- * Two-stage safety scan: cheap moderation first, escalating to GPT-4o-mini only
- * when a category trips the threshold. Returns an action (allow/flag/block) and
- * logs anything flagged or blocked for human review. Designed to run fast and
- * fail-open (treats content as safe if OpenAI is unavailable).
+ * Two-stage scan: cheap moderation first, escalating to GPT-4o-mini only when a
+ * category trips the threshold. Fail-open (treats content as safe when OpenAI
+ * is unavailable). Flagged/blocked results are logged for human review.
  */
 export async function scanMessage(
   content: string,
@@ -48,32 +54,53 @@ export async function scanMessage(
 ): Promise<ScanResult> {
   const moderation = await moderateContent(content);
 
-  if (moderation.maxCategoryScore <= MODERATION_ESCALATE) {
-    return { action: 'allow', safe: true, score: 1, concern: null };
-  }
-
-  const analysis = await analyzeMessageSafety(content);
-
-  let action: ScanAction = 'allow';
-  if (analysis.score < BLOCK_BELOW) action = 'block';
-  else if (analysis.score < FLAG_BELOW) action = 'flag';
-
-  if (action !== 'allow') {
-    await logModeration(
+  if (moderation.flagged) {
+    await logScan({
       matchId,
       senderId,
       content,
-      action,
-      analysis.score,
-      analysis.concern,
-      'gpt',
-    );
+      action: 'blocked',
+      score: 0,
+      concern: moderation.category,
+      source: 'moderation',
+      wasBlocked: true,
+    });
+    return { isSafe: false, score: 0, reason: moderation.category, shouldWarn: false };
   }
 
-  return {
-    action,
-    safe: analysis.safe,
-    score: analysis.score,
-    concern: analysis.concern,
-  };
+  if (moderation.maxCategoryScore <= ESCALATE) {
+    return { isSafe: true, score: 1, reason: null, shouldWarn: false };
+  }
+
+  const gpt = await analyzeMessageSafety(content);
+
+  if (gpt.score < BLOCK_BELOW) {
+    await logScan({
+      matchId,
+      senderId,
+      content,
+      action: 'blocked',
+      score: gpt.score,
+      concern: gpt.concern,
+      source: 'gpt',
+      wasBlocked: true,
+    });
+    return { isSafe: false, score: gpt.score, reason: gpt.concern, shouldWarn: false };
+  }
+
+  if (gpt.score <= WARN_BELOW) {
+    await logScan({
+      matchId,
+      senderId,
+      content,
+      action: 'flagged',
+      score: gpt.score,
+      concern: gpt.concern,
+      source: 'gpt',
+      wasBlocked: false,
+    });
+    return { isSafe: true, score: gpt.score, reason: gpt.concern, shouldWarn: true };
+  }
+
+  return { isSafe: true, score: gpt.score, reason: null, shouldWarn: false };
 }
