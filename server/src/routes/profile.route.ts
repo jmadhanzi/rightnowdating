@@ -2,8 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { pool } from '../db/index.js';
+import { redis } from '../db/redis.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { notFound } from '../utils/http-error.js';
+
+const PROFILE_CACHE_TTL = 300; // 5 minutes
+const profileCacheKey = (userId: string): string => `profile:${userId}`;
 
 const VIBE_VALUES = ['coffee', 'drinks', 'walk', 'food', 'explore', 'late', 'spicy'] as const;
 const patchBody = z.object({
@@ -32,6 +36,10 @@ interface ProfileRow {
 
 export async function profileRoutes(app: FastifyInstance): Promise<void> {
   app.get('/profile', { preHandler: authenticateToken }, async (request, reply) => {
+    const cacheKey = profileCacheKey(request.user.userId);
+    const cached = await redis.get(cacheKey).catch(() => null);
+    if (cached) return reply.send(JSON.parse(cached));
+
     const { rows } = await pool.query(
       `SELECT p.id, p.display_name, p.age, p.avatar_emoji, p.bio, p.city, p.preferred_vibes,
               p.preferred_radius_miles, p.preferred_age_min, p.preferred_age_max,
@@ -48,6 +56,9 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
       [request.user.userId],
     );
     if (rows.length === 0) throw notFound('Profile not found.');
+    await redis
+      .set(cacheKey, JSON.stringify(rows[0]), 'EX', PROFILE_CACHE_TTL)
+      .catch(() => undefined);
     return reply.send(rows[0]);
   });
 
@@ -84,6 +95,7 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
       ],
     );
     if (rows.length === 0) throw notFound('Profile not found.');
+    await redis.del(profileCacheKey(userId)).catch(() => undefined);
     return reply.send(rows[0]);
   });
 }

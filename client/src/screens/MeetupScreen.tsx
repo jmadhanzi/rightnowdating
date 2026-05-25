@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import Button from '@/components/Button';
 import CountdownTimer from '@/components/CountdownTimer';
+import MatchSkeleton from '@/components/skeletons/MatchSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { getIcebreaker, getMatch, getProfile, triggerSos, type MatchData } from '@/services/api';
 import { confirmCheckin, getSocket } from '@/services/socket';
@@ -77,14 +78,7 @@ export default function MeetupScreen(): React.JSX.Element {
   };
 
   if (!match) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: 'var(--s0)', color: 'var(--dm)' }}
-      >
-        Loading…
-      </div>
-    );
+    return <MatchSkeleton />;
   }
 
   const meetupAt = match.meetupTime ? Date.parse(match.meetupTime) : Date.now() + 22 * 60 * 1000;

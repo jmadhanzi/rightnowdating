@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import mapboxgl, { Map as MapboxMap, Marker as MapboxMarker } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -8,6 +8,7 @@ import Avatar from '@/components/Avatar';
 import Button from '@/components/Button';
 import CountdownTimer from '@/components/CountdownTimer';
 import BottomNav from '@/components/BottomNav';
+import NearbyCardSkeleton from '@/components/skeletons/NearbyCardSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { useMapStore, type StoredPin } from '@/store/useMapStore';
 import { useMatchStore } from '@/store/useMatchStore';
@@ -361,7 +362,10 @@ export default function MapScreen(): React.JSX.Element {
         </div>
 
         <div className="flex gap-3 overflow-x-auto px-5 pb-2" style={{ scrollbarWidth: 'none' }}>
-          {drawerPins.length === 0 && (
+          {!mapReady &&
+            drawerPins.length === 0 &&
+            [0, 1, 2].map((i) => <NearbyCardSkeleton key={i} />)}
+          {mapReady && drawerPins.length === 0 && (
             <p className="py-6 text-sm" style={{ color: 'var(--mt)' }}>
               No one live nearby yet — be the first to go live.
             </p>
@@ -487,7 +491,7 @@ function createMarkerEl(
 }
 
 // ---------------------------------------------------------------------------
-function PersonCard({
+const PersonCard = memo(function PersonCard({
   pin,
   miles,
   onOpen,
@@ -531,7 +535,7 @@ function PersonCard({
       </span>
     </button>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 function SparkOverlay({

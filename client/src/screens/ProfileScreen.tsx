@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import debounce from 'lodash.debounce';
 import type { Vibe } from '@rightnow/shared';
 
 import Button from '@/components/Button';
 import BottomNav from '@/components/BottomNav';
 import VibeChip from '@/components/VibeChip';
+import ProfileSkeleton from '@/components/skeletons/ProfileSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { getProfile, getReferralStats, updateProfile } from '@/services/api';
 import { VIBES } from '@/utils/vibes';
@@ -42,7 +44,6 @@ export default function ProfileScreen(): React.JSX.Element {
   const [referralCount, setReferralCount] = useState(0);
   const [editPref, setEditPref] = useState<null | 'radius' | 'age' | 'city'>(null);
   const [prefValue, setPrefValue] = useState('');
-  const bioTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getProfile<ProfileData>()
@@ -63,10 +64,19 @@ export default function ProfileScreen(): React.JSX.Element {
   const update = (partial: Partial<ProfileData>): void =>
     setProfile((p) => (p ? { ...p, ...partial } : p));
 
+  // Debounced bio auto-save (1s after the user stops typing).
+  const debouncedBioSave = useMemo(
+    () =>
+      debounce((value: string) => {
+        void updateProfile({ bio: value }).catch(() => toast.error('Could not save'));
+      }, 1000),
+    [toast],
+  );
+  useEffect(() => () => debouncedBioSave.cancel(), [debouncedBioSave]);
+
   const onBioChange = (value: string): void => {
     update({ bio: value });
-    if (bioTimer.current) clearTimeout(bioTimer.current);
-    bioTimer.current = setTimeout(() => patch({ bio: value }), 1000);
+    debouncedBioSave(value);
   };
 
   const toggleVibe = (vibe: Vibe): void => {
@@ -100,14 +110,7 @@ export default function ProfileScreen(): React.JSX.Element {
   };
 
   if (!profile) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: 'var(--s0)', color: 'var(--dm)' }}
-      >
-        Loading…
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
   const verified = profile.verified_id || profile.trust_score >= 66;

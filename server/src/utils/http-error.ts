@@ -1,21 +1,17 @@
-/**
- * Error carrying an HTTP status code. The global error handler reads
- * `statusCode`, `name`, and `message` to shape the JSON response — stack traces
- * are never exposed to clients.
- */
-export class HttpError extends Error {
-  readonly statusCode: number;
+import {
+  AppError,
+  AuthError,
+  ForbiddenError,
+  NotFoundError,
+  RateLimitError,
+  ValidationError,
+} from './errors.js';
 
-  constructor(statusCode: number, message: string, name = 'Error') {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = name;
-  }
-}
+export { AppError };
 
-export const badRequest = (msg: string): HttpError => new HttpError(400, msg, 'BadRequest');
-export const unauthorized = (msg: string): HttpError => new HttpError(401, msg, 'Unauthorized');
-export const forbidden = (msg: string): HttpError => new HttpError(403, msg, 'Forbidden');
-export const notFound = (msg: string): HttpError => new HttpError(404, msg, 'NotFound');
-export const tooManyRequests = (msg: string): HttpError =>
-  new HttpError(429, msg, 'TooManyRequests');
+// Convenience constructors returning the matching AppError subclass.
+export const badRequest = (msg: string): AppError => new ValidationError(msg);
+export const unauthorized = (msg: string): AppError => new AuthError(msg);
+export const forbidden = (msg: string): AppError => new ForbiddenError(msg);
+export const notFound = (msg: string): AppError => new NotFoundError(msg);
+export const tooManyRequests = (msg: string): AppError => new RateLimitError(msg);

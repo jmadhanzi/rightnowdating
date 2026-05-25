@@ -17,6 +17,14 @@ import { applyFuzzyLocation, getNearbyUsers } from '../services/location.service
 import { suggestVenues } from '../services/venues.service.js';
 import { scanMessage } from '../services/aiSafety.service.js';
 import { scheduleCheckin } from '../services/safetyScheduler.service.js';
+import {
+  SPARK_TTL_SECONDS,
+  createSpark,
+  acceptSpark,
+  createMatch,
+  declineSpark,
+  expireSpark,
+} from '../services/sparks.service.js';
 import { recordReferredFirstDate } from '../services/referrals.service.js';
 import type { RNServer, RNSocket, SocketData } from './types.js';
 import { setIO } from './emitter.js';
@@ -31,7 +39,6 @@ const userSessionKey = (userId: string): string => `user_session:${userId}`;
 const socketKey = (socketId: string): string => `socket:${socketId}`;
 const sparkExpiryKey = (sparkId: string): string => `spark_expiry:${sparkId}`;
 
-const SPARK_TTL_SECONDS = 7 * 60;
 const SESSION_WARN_MS = 5 * 60 * 1000;
 const MEETUP_LEAD_MS = 20 * 60 * 1000; // time allotted to reach the venue
 
@@ -219,6 +226,18 @@ async function handleSparkSend(
   const senderId = socket.data.userId;
   const { targetSessionId } = payload;
 
+  // Rate limit: 10 sparks per 30 minutes per user.
+  const rateKey = `spark:rate:${senderId}`;
+  const sparkCount = await redis.incr(rateKey);
+  if (sparkCount === 1) await redis.expire(rateKey, 30 * 60);
+  if (sparkCount > 10) {
+    socket.emit('app:error', {
+      event: 'spark:send',
+      message: 'Slow down — too many sparks. Try again later.',
+    });
+    return;
+  }
+
   const target = await pool.query<{ user_id: string }>(
     'SELECT user_id FROM live_sessions WHERE id = $1 AND is_active = true',
     [targetSessionId],
@@ -239,16 +258,12 @@ async function handleSparkSend(
     return;
   }
 
-  const expiresAt = new Date(Date.now() + SPARK_TTL_SECONDS * 1000);
-  const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO sparks (sender_id, receiver_id, sender_session_id, receiver_session_id, status, expires_at)
-     VALUES ($1, $2, $3, $4, 'pending', $5)
-     ON CONFLICT (sender_id, receiver_id, sender_session_id)
-       DO UPDATE SET expires_at = EXCLUDED.expires_at, status = 'pending'
-     RETURNING id`,
-    [senderId, receiverId, senderSessionId, targetSessionId, expiresAt],
-  );
-  const sparkId = rows[0]!.id;
+  const { sparkId, expiresAt } = await createSpark({
+    senderId,
+    receiverId,
+    senderSessionId,
+    receiverSessionId: targetSessionId,
+  });
 
   await redis.set(sparkExpiryKey(sparkId), '1', 'EX', SPARK_TTL_SECONDS);
 
@@ -268,24 +283,19 @@ async function handleSparkAccept(
   const receiverId = socket.data.userId;
   const { sparkId } = payload;
 
-  const updated = await pool.query<{
-    sender_id: string;
-    sender_session_id: string | null;
-    receiver_session_id: string | null;
-  }>(
-    `UPDATE sparks SET status = 'mutual'
-      WHERE id = $1 AND receiver_id = $2 AND status = 'pending'
-      RETURNING sender_id, sender_session_id, receiver_session_id`,
-    [sparkId, receiverId],
-  );
-  if (updated.rows.length === 0) {
+  const accepted = await acceptSpark(sparkId, receiverId);
+  if (!accepted) {
     socket.emit('app:error', {
       event: 'spark:accept',
       message: 'This spark is no longer available.',
     });
     return;
   }
-  const { sender_id, sender_session_id, receiver_session_id } = updated.rows[0]!;
+  const {
+    senderId: sender_id,
+    senderSessionId: sender_session_id,
+    receiverSessionId: receiver_session_id,
+  } = accepted;
   await redis.del(sparkExpiryKey(sparkId));
 
   // Fetch both fuzzy locations + the sender's vibe for venue matching.
@@ -311,13 +321,13 @@ async function handleSparkAccept(
   }
 
   const meetupTime = new Date(Date.now() + MEETUP_LEAD_MS);
-  const { rows } = await pool.query<{ id: string }>(
-    `INSERT INTO matches (spark_id, user1_id, user2_id, venue_id, meetup_time, status)
-     VALUES ($1, $2, $3, $4, $5, 'active')
-     RETURNING id`,
-    [sparkId, sender_id, receiverId, venue?.id ?? null, meetupTime],
-  );
-  const matchId = rows[0]!.id;
+  const { matchId } = await createMatch({
+    sparkId,
+    user1Id: sender_id,
+    user2Id: receiverId,
+    venueId: venue?.id ?? null,
+    meetupTime,
+  });
 
   const matchPayload = {
     matchId,
@@ -332,12 +342,8 @@ async function handleSparkAccept(
 }
 
 async function handleSparkDecline(socket: RNSocket, payload: { sparkId: string }): Promise<void> {
-  const { sparkId } = payload;
-  await pool.query(
-    "UPDATE sparks SET status = 'declined' WHERE id = $1 AND receiver_id = $2 AND status = 'pending'",
-    [sparkId, socket.data.userId],
-  );
-  await redis.del(sparkExpiryKey(sparkId));
+  await declineSpark(payload.sparkId, socket.data.userId);
+  await redis.del(sparkExpiryKey(payload.sparkId));
 }
 
 async function handleMessageSend(
@@ -453,14 +459,10 @@ async function handleTyping(
 // Spark expiry via Redis keyspace notifications
 // ---------------------------------------------------------------------------
 async function handleSparkExpiry(io: RNServer, sparkId: string): Promise<void> {
-  const { rows } = await pool.query<{ sender_id: string; receiver_id: string }>(
-    "UPDATE sparks SET status = 'expired' WHERE id = $1 AND status = 'pending' RETURNING sender_id, receiver_id",
-    [sparkId],
-  );
-  if (rows.length === 0) return;
-  const { sender_id, receiver_id } = rows[0]!;
-  io.to(userRoom(sender_id)).emit('spark:expired', { sparkId });
-  io.to(userRoom(receiver_id)).emit('spark:expired', { sparkId });
+  const expired = await expireSpark(sparkId);
+  if (!expired) return;
+  io.to(userRoom(expired.senderId)).emit('spark:expired', { sparkId });
+  io.to(userRoom(expired.receiverId)).emit('spark:expired', { sparkId });
 }
 
 async function setupSparkExpiryListener(io: RNServer): Promise<void> {

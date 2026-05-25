@@ -12,6 +12,7 @@ const { Pool } = pg;
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
   max: env.POSTGRES_POOL_MAX,
+  idleTimeoutMillis: 30_000,
   ssl: env.POSTGRES_SSL ? { rejectUnauthorized: false } : undefined,
 });
 

@@ -1,13 +1,61 @@
-import { useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import ChatSkeleton from '@/components/skeletons/ChatSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useChatStore } from '@/store/useChatStore';
+import { useChatStore, type StoredMessage } from '@/store/useChatStore';
 import { getChatMessages, getMatch, type MatchData } from '@/services/api';
 import { emitTyping, getSocket, sendMessage } from '@/services/socket';
 
 const TYPING_THROTTLE_MS = 3000;
+
+const ChatMessage = memo(function ChatMessage({
+  message,
+  mine,
+  showTime,
+  onToggleTime,
+}: {
+  message: StoredMessage;
+  mine: boolean;
+  showTime: boolean;
+  onToggleTime: (id: string) => void;
+}): React.JSX.Element {
+  return (
+    <div className={mine ? 'flex justify-end' : 'flex justify-start'}>
+      <div className="max-w-[75%]">
+        <button
+          type="button"
+          onClick={() => onToggleTime(message.id)}
+          className="block rounded-2xl px-3 py-2 text-left text-sm"
+          style={{
+            background: mine ? 'var(--hot)' : 'var(--s2)',
+            color: mine ? '#fff' : 'var(--tx)',
+          }}
+        >
+          {message.isFlagged ? (
+            <span className="italic" style={{ color: mine ? '#ffe' : 'var(--mt)' }}>
+              Message blocked by safety system
+            </span>
+          ) : (
+            message.content
+          )}
+        </button>
+        {showTime && (
+          <p
+            className={`mt-0.5 text-[10px] ${mine ? 'text-right' : 'text-left'}`}
+            style={{ color: 'var(--mt)' }}
+          >
+            {new Date(message.createdAt).toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function ChatScreen(): React.JSX.Element {
   const navigate = useNavigate();
@@ -24,6 +72,7 @@ export default function ChatScreen(): React.JSX.Element {
   const [draft, setDraft] = useState('');
   const [theyTyping, setTheyTyping] = useState(false);
   const [showTime, setShowTime] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastTypingRef = useRef(0);
@@ -35,9 +84,11 @@ export default function ChatScreen(): React.JSX.Element {
   useEffect(() => {
     if (!matchId) return;
     setActiveMatch(matchId);
+    setLoading(true);
     getChatMessages(matchId)
       .then((r) => setMessages(matchId, r.messages))
-      .catch(() => toast.error('Could not load messages'));
+      .catch(() => toast.error('Could not load messages'))
+      .finally(() => setLoading(false));
     getMatch(matchId)
       .then(setMatch)
       .catch(() => undefined);
@@ -63,6 +114,10 @@ export default function ChatScreen(): React.JSX.Element {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, theyTyping]);
+
+  const toggleTime = useCallback((id: string): void => {
+    setShowTime((t) => (t === id ? null : id));
+  }, []);
 
   const onDraftChange = (value: string): void => {
     setDraft(value);
@@ -117,43 +172,16 @@ export default function ChatScreen(): React.JSX.Element {
 
       {/* Messages */}
       <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3">
-        {messages.map((m) => {
-          const mine = m.senderId === myId;
-          return (
-            <div key={m.id} className={mine ? 'flex justify-end' : 'flex justify-start'}>
-              <div className="max-w-[75%]">
-                <button
-                  type="button"
-                  onClick={() => setShowTime((t) => (t === m.id ? null : m.id))}
-                  className="block rounded-2xl px-3 py-2 text-left text-sm"
-                  style={{
-                    background: mine ? 'var(--hot)' : 'var(--s2)',
-                    color: mine ? '#fff' : 'var(--tx)',
-                  }}
-                >
-                  {m.isFlagged ? (
-                    <span className="italic" style={{ color: mine ? '#ffe' : 'var(--mt)' }}>
-                      Message blocked by safety system
-                    </span>
-                  ) : (
-                    m.content
-                  )}
-                </button>
-                {showTime === m.id && (
-                  <p
-                    className={`mt-0.5 text-[10px] ${mine ? 'text-right' : 'text-left'}`}
-                    style={{ color: 'var(--mt)' }}
-                  >
-                    {new Date(m.createdAt).toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {loading && messages.length === 0 && <ChatSkeleton />}
+        {messages.map((m) => (
+          <ChatMessage
+            key={m.id}
+            message={m}
+            mine={m.senderId === myId}
+            showTime={showTime === m.id}
+            onToggleTime={toggleTime}
+          />
+        ))}
 
         {theyTyping && (
           <div className="flex justify-start">

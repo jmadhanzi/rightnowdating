@@ -26,4 +26,8 @@ export default {
   setupFiles: ['<rootDir>/src/tests/jest.setup.ts'],
   testMatch: ['<rootDir>/src/tests/**/*.test.ts'],
   testTimeout: 30000,
+  // DB-backed suites share Postgres/Redis — run serially to avoid pool exhaustion.
+  maxWorkers: 1,
+  // ioredis/pool keep handles open briefly; force a clean exit after the run.
+  forceExit: true,
 };

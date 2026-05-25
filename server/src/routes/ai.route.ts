@@ -5,6 +5,7 @@ import { pool } from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { forbidden, notFound } from '../utils/http-error.js';
 import { generateIcebreaker, scoreProfileBio } from '../services/ai.service.js';
+import { routeRateLimit } from '../middleware/rateLimit.js';
 
 const icebreakerBody = z.object({ matchId: z.string().uuid() });
 const scoreBody = z.object({ bio: z.string().min(1).max(500) });
@@ -20,21 +21,27 @@ async function assertParticipant(matchId: string, userId: string): Promise<void>
   }
 }
 
+// AI endpoints: 20 requests/min.
+const aiRouteOpts = {
+  preHandler: authenticateToken,
+  config: routeRateLimit(20, '1 minute'),
+};
+
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
-  app.post('/ai/icebreaker', { preHandler: authenticateToken }, async (request, reply) => {
+  app.post('/ai/icebreaker', aiRouteOpts, async (request, reply) => {
     const { matchId } = icebreakerBody.parse(request.body);
     await assertParticipant(matchId, request.user.userId);
     return reply.send({ icebreaker: await generateIcebreaker(matchId) });
   });
 
   // GET variant retained for existing clients (Match/Meetup screens).
-  app.get('/ai/icebreaker', { preHandler: authenticateToken }, async (request, reply) => {
+  app.get('/ai/icebreaker', aiRouteOpts, async (request, reply) => {
     const { matchId } = icebreakerBody.parse(request.query);
     await assertParticipant(matchId, request.user.userId);
     return reply.send({ icebreaker: await generateIcebreaker(matchId) });
   });
 
-  app.post('/ai/profile-score', { preHandler: authenticateToken }, async (request, reply) => {
+  app.post('/ai/profile-score', aiRouteOpts, async (request, reply) => {
     const { bio } = scoreBody.parse(request.body);
     return reply.send(await scoreProfileBio(bio));
   });

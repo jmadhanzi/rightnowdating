@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import Button from '@/components/Button';
@@ -22,7 +22,16 @@ const PRICING: Record<
   },
 };
 
-const PLANS = [
+type PlanCardData = {
+  key: Plan;
+  name: string;
+  badge?: string;
+  features: string[];
+  locked: string[];
+  accent: string;
+};
+
+const PLANS: PlanCardData[] = [
   {
     key: 'free' as Plan,
     name: 'Free',
@@ -91,6 +100,8 @@ export default function PaywallScreen(): React.JSX.Element {
       .then((r) => setViewed(r.count))
       .catch(() => undefined);
   }, []);
+
+  const onSelectPlan = useCallback((key: Plan): void => setSelected(key), []);
 
   const restore = (): void => {
     restorePurchases()
@@ -220,89 +231,15 @@ export default function PaywallScreen(): React.JSX.Element {
 
         {/* Plan cards */}
         <div className="space-y-3">
-          {PLANS.map((p) => {
-            const isSel = selected === p.key;
-            const price = p.key !== 'free' ? PRICING[p.key][billing] : null;
-            return (
-              <button
-                key={p.key}
-                type="button"
-                onClick={() => setSelected(p.key)}
-                className="block w-full rounded-2xl p-4 text-left"
-                style={{
-                  background: 'var(--s1)',
-                  border: `2px solid ${isSel ? p.accent : 'var(--s3)'}`,
-                }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="flex h-5 w-5 items-center justify-center rounded-full"
-                      style={{ border: `2px solid ${isSel ? p.accent : 'var(--s4)'}` }}
-                    >
-                      {isSel && (
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ background: p.accent }}
-                        />
-                      )}
-                    </span>
-                    <span
-                      className="font-display text-lg font-bold"
-                      style={{ color: p.key === 'vip' ? 'var(--gold)' : 'var(--tx)' }}
-                    >
-                      {p.name}
-                    </span>
-                    {p.badge && (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                        style={{ background: 'rgba(255,92,0,0.15)', color: p.accent }}
-                      >
-                        {p.badge}
-                      </span>
-                    )}
-                  </div>
-                  {p.key === 'free' && (
-                    <span className="text-xs" style={{ color: 'var(--mt)' }}>
-                      Current
-                    </span>
-                  )}
-                  {price && (
-                    <div className="text-right">
-                      {price.was && billing === 'annual' && (
-                        <span className="mr-1 text-xs line-through" style={{ color: 'var(--mt)' }}>
-                          {price.was}
-                        </span>
-                      )}
-                      <span className="font-bold" style={{ color: p.accent }}>
-                        {price.display}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {price && (
-                  <p className="mt-0.5 text-right text-[11px]" style={{ color: 'var(--mt)' }}>
-                    {price.sub}
-                  </p>
-                )}
-                <ul className="mt-2 space-y-1 text-sm">
-                  {p.features.map((f) => (
-                    <li key={f} style={{ color: 'var(--tx)' }}>
-                      <span style={{ color: p.key === 'vip' ? 'var(--gold)' : 'var(--hot)' }}>
-                        {p.key === 'vip' ? '★' : '✓'}
-                      </span>{' '}
-                      {f}
-                    </li>
-                  ))}
-                  {p.locked.map((f) => (
-                    <li key={f} style={{ color: 'var(--mt)' }}>
-                      — {f}
-                    </li>
-                  ))}
-                </ul>
-              </button>
-            );
-          })}
+          {PLANS.map((p) => (
+            <PlanCard
+              key={p.key}
+              plan={p}
+              billing={billing}
+              selected={selected === p.key}
+              onSelect={onSelectPlan}
+            />
+          ))}
         </div>
 
         {/* Social proof */}
@@ -369,6 +306,95 @@ export default function PaywallScreen(): React.JSX.Element {
     </div>
   );
 }
+
+const PlanCard = memo(function PlanCard({
+  plan,
+  billing,
+  selected,
+  onSelect,
+}: {
+  plan: PlanCardData;
+  billing: Billing;
+  selected: boolean;
+  onSelect: (key: Plan) => void;
+}): React.JSX.Element {
+  const price = plan.key !== 'free' ? PRICING[plan.key][billing] : null;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(plan.key)}
+      className="block w-full rounded-2xl p-4 text-left"
+      style={{
+        background: 'var(--s1)',
+        border: `2px solid ${selected ? plan.accent : 'var(--s3)'}`,
+      }}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-full"
+            style={{ border: `2px solid ${selected ? plan.accent : 'var(--s4)'}` }}
+          >
+            {selected && (
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: plan.accent }} />
+            )}
+          </span>
+          <span
+            className="font-display text-lg font-bold"
+            style={{ color: plan.key === 'vip' ? 'var(--gold)' : 'var(--tx)' }}
+          >
+            {plan.name}
+          </span>
+          {plan.badge && (
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{ background: 'rgba(255,92,0,0.15)', color: plan.accent }}
+            >
+              {plan.badge}
+            </span>
+          )}
+        </div>
+        {plan.key === 'free' && (
+          <span className="text-xs" style={{ color: 'var(--mt)' }}>
+            Current
+          </span>
+        )}
+        {price && (
+          <div className="text-right">
+            {price.was && billing === 'annual' && (
+              <span className="mr-1 text-xs line-through" style={{ color: 'var(--mt)' }}>
+                {price.was}
+              </span>
+            )}
+            <span className="font-bold" style={{ color: plan.accent }}>
+              {price.display}
+            </span>
+          </div>
+        )}
+      </div>
+      {price && (
+        <p className="mt-0.5 text-right text-[11px]" style={{ color: 'var(--mt)' }}>
+          {price.sub}
+        </p>
+      )}
+      <ul className="mt-2 space-y-1 text-sm">
+        {plan.features.map((f) => (
+          <li key={f} style={{ color: 'var(--tx)' }}>
+            <span style={{ color: plan.key === 'vip' ? 'var(--gold)' : 'var(--hot)' }}>
+              {plan.key === 'vip' ? '★' : '✓'}
+            </span>{' '}
+            {f}
+          </li>
+        ))}
+        {plan.locked.map((f) => (
+          <li key={f} style={{ color: 'var(--mt)' }}>
+            — {f}
+          </li>
+        ))}
+      </ul>
+    </button>
+  );
+});
 
 function MissedCard({
   emoji,

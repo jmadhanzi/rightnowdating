@@ -8,6 +8,7 @@ import { badRequest } from '../utils/http-error.js';
 import { createBoostPaymentIntent, retrievePaymentIntent } from '../services/stripe.service.js';
 import { scheduleBoostExpiry, BOOST_DURATION_MS } from '../services/queue.service.js';
 import { emitToUser, emitToCity } from '../socket/emitter.js';
+import { routeRateLimit } from '../middleware/rateLimit.js';
 
 const purchaseBody = z.object({ sessionId: z.string().uuid() });
 const confirmBody = z.object({
@@ -51,14 +52,18 @@ async function activateBoost(params: {
 }
 
 export async function boostRoutes(app: FastifyInstance): Promise<void> {
-  // Pay-to-boost: create the PaymentIntent ($2.99).
-  app.post('/boost/purchase', { preHandler: authenticateToken }, async (request, reply) => {
-    const { sessionId } = purchaseBody.parse(request.body);
-    const city = await sessionCity(sessionId, request.user.userId);
-    if (!city) throw badRequest('You need an active live session to boost.');
-    const { clientSecret } = await createBoostPaymentIntent(request.user.userId, sessionId);
-    return reply.send({ clientSecret });
-  });
+  // Pay-to-boost: create the PaymentIntent ($2.99). Max 1/hour.
+  app.post(
+    '/boost/purchase',
+    { preHandler: authenticateToken, config: routeRateLimit(1, '60 minutes') },
+    async (request, reply) => {
+      const { sessionId } = purchaseBody.parse(request.body);
+      const city = await sessionCity(sessionId, request.user.userId);
+      if (!city) throw badRequest('You need an active live session to boost.');
+      const { clientSecret } = await createBoostPaymentIntent(request.user.userId, sessionId);
+      return reply.send({ clientSecret });
+    },
+  );
 
   // Confirm a paid boost.
   app.post('/boost/confirm', { preHandler: authenticateToken }, async (request, reply) => {

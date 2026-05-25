@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
 import { ToastProvider } from '@/components/Toast';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Splash from '@/components/Splash';
 import { useAuthStore } from '@/store/useAuthStore';
 import { connectSocket, disconnectSocket } from '@/services/socket';
@@ -39,30 +40,32 @@ function SocketManager(): null {
 
 export default function App(): React.JSX.Element {
   return (
-    <ToastProvider>
-      <BrowserRouter>
-        <SocketManager />
-        <Suspense fallback={<Splash />}>
-          <Routes>
-            <Route path="/" element={<RootRedirect />} />
-            <Route path="/onboarding" element={<OnboardingScreen />} />
+    <ErrorBoundary>
+      <ToastProvider>
+        <BrowserRouter>
+          <SocketManager />
+          <Suspense fallback={<Splash />}>
+            <Routes>
+              <Route path="/" element={<RootRedirect />} />
+              <Route path="/onboarding" element={<OnboardingScreen />} />
 
-            <Route element={<ProtectedRoute />}>
-              <Route path="/live" element={<GoLiveScreen />} />
-              <Route path="/map" element={<MapScreen />} />
-              <Route path="/match/:matchId" element={<MatchScreen />} />
-              <Route path="/meetup/:matchId" element={<MeetupScreen />} />
-              <Route path="/profile" element={<ProfileScreen />} />
-              <Route path="/chats" element={<ChatsScreen />} />
-              <Route path="/chat/:matchId" element={<ChatScreen />} />
-              <Route path="/referral" element={<ReferralScreen />} />
-              <Route path="/upgrade" element={<PaywallScreen />} />
-            </Route>
+              <Route element={<ProtectedRoute />}>
+                <Route path="/live" element={<GoLiveScreen />} />
+                <Route path="/map" element={<MapScreen />} />
+                <Route path="/match/:matchId" element={<MatchScreen />} />
+                <Route path="/meetup/:matchId" element={<MeetupScreen />} />
+                <Route path="/profile" element={<ProfileScreen />} />
+                <Route path="/chats" element={<ChatsScreen />} />
+                <Route path="/chat/:matchId" element={<ChatScreen />} />
+                <Route path="/referral" element={<ReferralScreen />} />
+                <Route path="/upgrade" element={<PaywallScreen />} />
+              </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </ToastProvider>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

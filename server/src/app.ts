@@ -36,7 +36,7 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // Global rate limit, backed by Redis so limits hold across instances.
   await app.register(rateLimit, {
-    max: 100,
+    max: env.NODE_ENV === 'test' ? 1_000_000 : 100,
     timeWindow: '1 minute',
     redis,
     // If Redis is unavailable, fail open rather than blocking all traffic.

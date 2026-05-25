@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Avatar from '@/components/Avatar';
 import Button from '@/components/Button';
 import CountdownTimer from '@/components/CountdownTimer';
+import MatchSkeleton from '@/components/skeletons/MatchSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { getIcebreaker, getMatch, type MatchData } from '@/services/api';
 import { sparkAccept, sparkDecline } from '@/services/socket';
@@ -45,14 +46,7 @@ export default function MatchScreen(): React.JSX.Element {
   }, [match]);
 
   if (!match) {
-    return (
-      <div
-        className="flex min-h-screen items-center justify-center"
-        style={{ background: 'var(--s0)', color: 'var(--dm)' }}
-      >
-        Loading…
-      </div>
-    );
+    return <MatchSkeleton />;
   }
 
   const urgent = progress * (Date.parse(match.expiresAt) - Date.parse(match.createdAt)) < 60_000;

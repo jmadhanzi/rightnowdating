@@ -55,7 +55,7 @@ describe('POST /auth/request-otp', () => {
   it('rejects an invalid phone format', async () => {
     const res = await api.post('/auth/request-otp').send({ phone: BAD_PHONE });
     expect(res.status).toBe(400);
-    expect(res.body.statusCode).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
     // Stack traces must never leak.
     expect(JSON.stringify(res.body)).not.toMatch(/at .*\(.*:\d+:\d+\)/);
   });

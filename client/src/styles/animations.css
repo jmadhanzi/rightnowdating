@@ -195,3 +195,19 @@
 .anim-scan {
   animation: scan 2.6s linear infinite;
 }
+
+/* Skeleton shimmer. */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--s2) 25%, var(--s3) 37%, var(--s2) 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 8px;
+}
