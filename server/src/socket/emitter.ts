@@ -12,7 +12,7 @@ export function setIO(server: RNServer): void {
   io = server;
 }
 
-export function emitToUser<E extends keyof ServerToClientEvents>(
+export function emitToUser<E extends keyof ServerToClientEvents & string>(
   userId: string,
   event: E,
   ...args: Parameters<ServerToClientEvents[E]>
@@ -20,7 +20,7 @@ export function emitToUser<E extends keyof ServerToClientEvents>(
   io?.to(`user:${userId}`).emit(event, ...args);
 }
 
-export function emitToCity<E extends keyof ServerToClientEvents>(
+export function emitToCity<E extends keyof ServerToClientEvents & string>(
   city: string,
   event: E,
   ...args: Parameters<ServerToClientEvents[E]>

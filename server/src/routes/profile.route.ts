@@ -46,7 +46,13 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
   app.get('/profile', { preHandler: authenticateToken }, async (request, reply) => {
     const cacheKey = profileCacheKey(request.user.userId);
     const cached = await redis.get(cacheKey).catch(() => null);
-    if (cached) return reply.send(JSON.parse(cached));
+    if (cached) {
+      try {
+        return reply.send(JSON.parse(cached));
+      } catch {
+        // Corrupt cache — fall through to re-fetch from DB.
+      }
+    }
 
     const { rows } = await pool.query(
       `SELECT p.id, p.display_name, p.age, p.avatar_emoji, p.bio, p.city, p.preferred_vibes,

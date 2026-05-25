@@ -33,23 +33,26 @@ interface ScoreInputs {
  * deductions, then persist it. Returns the saved score.
  */
 export async function calculateTrustScore(userId: string): Promise<number> {
-  const tsRes = await pool.query<ScoreInputs>(
-    `SELECT verified_phone, verified_id, photo_matched, show_up_rate, average_rating
-       FROM trust_scores WHERE user_id = $1`,
-    [userId],
-  );
-  const userRes = await pool.query<{ created_at: Date; is_banned: boolean }>(
-    'SELECT created_at, is_banned FROM users WHERE id = $1',
-    [userId],
-  );
-  const reportsRes = await pool.query<{ c: number }>(
-    'SELECT COUNT(*)::int AS c FROM reports WHERE reported_user_id = $1',
-    [userId],
-  );
-  const concernsRes = await pool.query<{ c: number }>(
-    'SELECT COUNT(*)::int AS c FROM date_ratings WHERE ratee_id = $1 AND safety_concern = true',
-    [userId],
-  );
+  // Run all four independent queries in parallel to minimise latency.
+  const [tsRes, userRes, reportsRes, concernsRes] = await Promise.all([
+    pool.query<ScoreInputs>(
+      `SELECT verified_phone, verified_id, photo_matched, show_up_rate, average_rating
+         FROM trust_scores WHERE user_id = $1`,
+      [userId],
+    ),
+    pool.query<{ created_at: Date; is_banned: boolean }>(
+      'SELECT created_at, is_banned FROM users WHERE id = $1',
+      [userId],
+    ),
+    pool.query<{ c: number }>(
+      'SELECT COUNT(*)::int AS c FROM reports WHERE reported_user_id = $1',
+      [userId],
+    ),
+    pool.query<{ c: number }>(
+      'SELECT COUNT(*)::int AS c FROM date_ratings WHERE ratee_id = $1 AND safety_concern = true',
+      [userId],
+    ),
+  ]);
 
   const ts = tsRes.rows[0];
   const user = userRes.rows[0];

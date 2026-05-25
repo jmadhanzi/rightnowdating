@@ -154,7 +154,14 @@ async function upsertUser(phone: string): Promise<{ userId: string; isNewUser: b
 
 async function issueRefreshToken(userId: string): Promise<string> {
   const token = crypto.randomUUID();
-  // Store both directions: by user (spec'd key) and a reverse index for lookup.
+
+  // Delete any previous refresh token for this user so old token keys don't
+  // accumulate in Redis for up to 30 days.
+  const previous = await redis.get(refreshByUserKey(userId));
+  if (previous) {
+    await redis.del(refreshByTokenKey(previous));
+  }
+
   await redis.set(refreshByUserKey(userId), token, 'EX', REFRESH_TTL_SECONDS);
   await redis.set(refreshByTokenKey(token), userId, 'EX', REFRESH_TTL_SECONDS);
   return token;
@@ -191,7 +198,9 @@ export async function verifyOtp(phone: string, otp: string): Promise<VerifyOtpRe
 // ---------------------------------------------------------------------------
 // refresh
 // ---------------------------------------------------------------------------
-export async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string }> {
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
   const userId = await redis.get(refreshByTokenKey(refreshToken));
   if (!userId) {
     throw unauthorized('Invalid or expired refresh token.');
@@ -210,7 +219,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<{ access
     throw unauthorized('Invalid or expired refresh token.');
   }
 
-  return { accessToken: signAccessToken(userId, result.rows[0]!.phone) };
+  // Rotate: issue a new refresh token, which also invalidates the old one.
+  const newRefreshToken = await issueRefreshToken(userId);
+  return {
+    accessToken: signAccessToken(userId, result.rows[0]!.phone),
+    refreshToken: newRefreshToken,
+  };
 }
 
 // ---------------------------------------------------------------------------

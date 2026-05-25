@@ -7,7 +7,7 @@ import CountdownTimer from '@/components/CountdownTimer';
 import MatchSkeleton from '@/components/skeletons/MatchSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { getIcebreaker, getMatch, type MatchData } from '@/services/api';
-import { sparkAccept, sparkDecline } from '@/services/socket';
+import { sparkDecline } from '@/services/socket';
 import { VIBES } from '@/utils/vibes';
 
 export default function MatchScreen(): React.JSX.Element {

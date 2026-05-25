@@ -141,14 +141,29 @@ async function processMonthlyCredits(): Promise<void> {
   const { rows } = await pool.query<{ user_id: string }>(
     "SELECT DISTINCT user_id FROM subscriptions WHERE plan = 'vip' AND status IN ('active', 'trialing', 'cancelling')",
   );
-  for (const { user_id } of rows) {
-    await pool.query('UPDATE users SET boost_credits = 5 WHERE id = $1', [user_id]);
-    await sendToUser(user_id, {
-      title: '🎁 Boost credits refreshed',
-      body: 'Your 5 monthly boost credits have been refreshed!',
-    });
+  if (rows.length === 0) return;
+
+  const userIds = rows.map((r) => r.user_id);
+
+  // Single UPDATE for all VIP users — far faster than N individual queries.
+  await pool.query(
+    'UPDATE users SET boost_credits = GREATEST(boost_credits, 5) WHERE id = ANY($1)',
+    [userIds],
+  );
+
+  // Push notifications in parallel batches of 100.
+  const BATCH = 100;
+  for (let i = 0; i < userIds.length; i += BATCH) {
+    await Promise.all(
+      userIds.slice(i, i + BATCH).map((id) =>
+        sendToUser(id, {
+          title: '🎁 Boost credits refreshed',
+          body: 'Your 5 monthly boost credits have been refreshed!',
+        }),
+      ),
+    );
   }
-  logger.info({ count: rows.length }, 'monthly VIP boost credits granted');
+  logger.info({ count: userIds.length }, 'monthly VIP boost credits granted');
 }
 
 safetyCheckQueue.process('checkin', processCheckin);

@@ -170,8 +170,8 @@ export async function sendCityActivity(
       WHERE LOWER(p.city) = $1
         AND u.is_banned = false AND u.is_suspended = false
         AND p.age IS NOT NULL AND p.display_name <> 'New User'
-        AND (u.last_active IS NULL OR u.last_active < NOW() - ($2 || ' hours')::interval)`,
-    [city.toLowerCase(), String(hoursInactive)],
+        AND (u.last_active IS NULL OR u.last_active < NOW() - make_interval(hours => $2))`,
+    [city.toLowerCase(), hoursInactive],
   );
 
   // Filter to users not recently notified.

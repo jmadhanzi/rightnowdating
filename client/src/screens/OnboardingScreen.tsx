@@ -132,7 +132,10 @@ export default function OnboardingScreen(): React.JSX.Element {
   // Step 5: fluctuating "live now" + one-time profile save.
   useEffect(() => {
     if (step !== 5) return;
-    if (!profileSaved.current) {
+    // Only save when displayName was filled in — returning users skip step 3
+    // and land here with an empty displayName, so we must not overwrite their
+    // existing profile with blank values.
+    if (!profileSaved.current && displayName.trim().length > 0) {
       profileSaved.current = true;
       const trimmed = displayName.trim();
       const ageMatch = trimmed.match(/(\d{1,2})\s*$/);

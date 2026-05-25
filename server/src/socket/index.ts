@@ -218,7 +218,6 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
 
 async function handleGoOffline(io: RNServer, socket: RNSocket): Promise<void> {
   const { userId, city } = socket.data;
-  const sessionId = await redis.get(userSessionKey(userId));
 
   // Deactivate all active sessions for this user (defensive — normally only one).
   const { rows: activeSessions } = await pool.query<{ id: string }>(
@@ -230,10 +229,7 @@ async function handleGoOffline(io: RNServer, socket: RNSocket): Promise<void> {
   for (const { id } of activeSessions) {
     await redis.srem(citySetKey(city), id);
     clearSessionTimers(id);
-  }
-
-  if (sessionId) {
-    io.to(cityRoom(city)).emit('map:pin:removed', { sessionId });
+    io.to(cityRoom(city)).emit('map:pin:removed', { sessionId: id });
   }
 }
 

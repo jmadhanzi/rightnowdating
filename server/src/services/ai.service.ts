@@ -175,7 +175,13 @@ export async function scoreProfileBio(bio: string): Promise<BioScore> {
   const cacheKey = `bioscore:${hash}`;
 
   const cached = await redis.get(cacheKey).catch(() => null);
-  if (cached) return JSON.parse(cached) as BioScore;
+  if (cached) {
+    try {
+      return JSON.parse(cached) as BioScore;
+    } catch {
+      // Corrupt cache entry — fall through to regenerate.
+    }
+  }
   if (!isAIConfigured()) return fallback;
 
   try {

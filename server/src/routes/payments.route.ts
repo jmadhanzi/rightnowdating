@@ -197,11 +197,21 @@ async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
     }
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription;
-      const userId = sub.metadata.userId;
+      const metaUserId = sub.metadata.userId;
       await pool.query(
         "UPDATE subscriptions SET status = 'cancelled' WHERE stripe_subscription_id = $1",
         [sub.id],
       );
+      // Use metadata userId if present; otherwise look it up from the DB so the
+      // Redis plan cache is always cleared even when metadata was not populated.
+      const userId =
+        metaUserId ??
+        (
+          await pool.query<{ user_id: string }>(
+            'SELECT user_id FROM subscriptions WHERE stripe_subscription_id = $1 LIMIT 1',
+            [sub.id],
+          )
+        ).rows[0]?.user_id;
       if (userId) await clearUserPlan(userId);
       break;
     }

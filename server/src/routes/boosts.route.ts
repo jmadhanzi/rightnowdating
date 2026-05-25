@@ -77,7 +77,16 @@ export async function boostRoutes(app: FastifyInstance): Promise<void> {
     const intent = await retrievePaymentIntent(paymentIntentId);
     if (intent.status !== 'succeeded') throw badRequest('Payment has not completed.');
 
-    const city = (await sessionCity(sessionId, userId)) ?? 'miami';
+    // Prefer the active session's city; if the session just expired, fall back to
+    // the user's profile city so the map:pin:updated broadcast reaches the right room.
+    let city = await sessionCity(sessionId, userId);
+    if (!city) {
+      const profileRes = await pool.query<{ city: string | null }>(
+        'SELECT city FROM profiles WHERE id = $1',
+        [userId],
+      );
+      city = (profileRes.rows[0]?.city ?? 'Miami').toLowerCase();
+    }
     const boostEndsAt = await activateBoost({ userId, sessionId, city, paymentIntentId });
     return reply.send({ success: true, boostEndsAt: boostEndsAt.toISOString() });
   });

@@ -68,10 +68,13 @@ export async function verifyOtp(phone: string, otp: string): Promise<VerifyOtpRe
 }
 
 /** Raw refresh (no interceptor) to avoid recursion. */
-export async function refresh(refreshToken: string): Promise<{ accessToken: string }> {
-  const { data } = await axios.post<{ accessToken: string }>(`${baseURL}/auth/refresh`, {
-    refreshToken,
-  });
+export async function refresh(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken: string }> {
+  const { data } = await axios.post<{ accessToken: string; refreshToken: string }>(
+    `${baseURL}/auth/refresh`,
+    { refreshToken },
+  );
   return data;
 }
 

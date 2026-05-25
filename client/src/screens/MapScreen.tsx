@@ -230,6 +230,13 @@ export default function MapScreen(): React.JSX.Element {
     }
   }, [activeMatch, navigate]);
 
+  // --- Periodic stale-pin cleanup (belt-and-suspenders for map:pin:removed) --
+  const clearExpired = useMapStore((s) => s.clearExpired);
+  useEffect(() => {
+    const id = setInterval(clearExpired, 60_000);
+    return () => clearInterval(id);
+  }, [clearExpired]);
+
   // --- Component-scoped socket events ---------------------------------------
   useEffect(() => {
     const socket = getSocket();

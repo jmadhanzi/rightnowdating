@@ -129,7 +129,7 @@ describe('POST /auth/verify-otp', () => {
 });
 
 describe('POST /auth/refresh', () => {
-  it('issues a new access token for a valid refresh token', async () => {
+  it('issues a new access token and rotated refresh token for a valid refresh token', async () => {
     await redis.set(`otp:${PHONE_A}`, KNOWN_OTP, 'EX', 600);
     const verify = await api.post('/auth/verify-otp').send({ phone: PHONE_A, otp: KNOWN_OTP });
     const { refreshToken } = verify.body;
@@ -137,6 +137,22 @@ describe('POST /auth/refresh', () => {
     const res = await api.post('/auth/refresh').send({ refreshToken });
     expect(res.status).toBe(200);
     expect(res.body.accessToken.split('.')).toHaveLength(3);
+    // Rotation: a new refresh token is returned.
+    expect(typeof res.body.refreshToken).toBe('string');
+    expect(res.body.refreshToken).not.toBe(refreshToken);
+  });
+
+  it('rejects the old refresh token after rotation', async () => {
+    await redis.set(`otp:${PHONE_A}`, KNOWN_OTP, 'EX', 600);
+    const verify = await api.post('/auth/verify-otp').send({ phone: PHONE_A, otp: KNOWN_OTP });
+    const { refreshToken: original } = verify.body;
+
+    // Consume the token once — rotates it.
+    await api.post('/auth/refresh').send({ refreshToken: original });
+
+    // Replaying the original token must fail.
+    const replay = await api.post('/auth/refresh').send({ refreshToken: original });
+    expect(replay.status).toBe(401);
   });
 
   it('rejects an unknown refresh token', async () => {

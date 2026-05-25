@@ -68,6 +68,8 @@ export const useAuthStore = create<AuthState>()(
         const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
         if (!refreshToken) throw new Error('No refresh token available');
         const res = await apiRefresh(refreshToken);
+        // Persist the rotated refresh token the server issued.
+        localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
         set({ accessToken: res.accessToken });
         return res.accessToken;
       },

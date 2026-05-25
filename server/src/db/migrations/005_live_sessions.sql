@@ -1,6 +1,8 @@
 -- 005_live_sessions.sql
--- A "Go Live" broadcast. `location` is exact; `fuzzy_location` is the
--- privacy-jittered point shown to others and used for proximity search.
+-- A "Go Live" broadcast. Both `location` and `fuzzy_location` store the
+-- privacy-snapped (~200 m grid) point — exact GPS is never persisted here.
+-- `fuzzy_location` is used for proximity search and is exposed to other users;
+-- `location` is kept as a separate column for any future internal use.
 
 CREATE TABLE IF NOT EXISTS live_sessions (
   id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
