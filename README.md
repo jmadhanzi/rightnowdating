@@ -88,11 +88,11 @@ Fill in the values. For a quick local start you only need the defaults plus a
 `JWT_SECRET` (>= 32 chars). Third-party keys (Twilio, Stripe, etc.) are optional
 — the server boots without them and only errors if you call those features.
 
-The client reads `VITE_*` variables. Create `client/.env` (or rely on Vite's
-proxy) with at least:
+The client reads `VITE_*` variables. Create `client/.env` with at least (point
+`VITE_API_URL` at the API root — endpoints like `/auth/*` are unprefixed):
 
 ```bash
-VITE_API_URL=http://localhost:3000/api/v1
+VITE_API_URL=http://localhost:3000
 VITE_SOCKET_URL=http://localhost:3000
 VITE_MAPBOX_TOKEN=pk.your-mapbox-public-token
 ```
@@ -276,6 +276,25 @@ npm run test --workspace server
 ```
 
 ---
+
+## Frontend (client)
+
+React 18 + Vite SPA. `App.tsx` wires React Router v6 with `React.lazy` +
+`Suspense` (each screen is its own chunk), a `ProtectedRoute` (redirects to
+`/onboarding`), a `ToastProvider`, and a socket manager that connects while
+authenticated.
+
+- **Design tokens / motion:** `styles/tokens.css` (CSS custom properties) and
+  `styles/animations.css` (pulse rings, breathing dot, bloom, glow, shake, …).
+- **Components:** `Button`, `LiveBadge`, `CountdownTimer` (color shifts +
+  shake under 30s), `Avatar` (trust-score border), `VibeChip`, and a
+  context-based `Toast` (`useToast`).
+- **Stores (Zustand):** `useAuthStore` (persisted token, login/refresh/logout),
+  `useMapStore`, `useMatchStore`, `useChatStore`, `useSubscriptionStore`.
+- **Services:** `services/api.ts` (Axios; bearer injection + refresh-on-401
+  retry then logout; typed functions per endpoint) and `services/socket.ts`
+  (token auth, exponential-backoff reconnect, server events → store updates,
+  client emitters). Screens under `screens/` are foundation stubs for now.
 
 ## Design system
 

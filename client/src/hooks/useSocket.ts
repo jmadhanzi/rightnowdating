@@ -1,18 +1,18 @@
 import { useEffect } from 'react';
-import { getSocket, type RightnowSocket } from '@/services/socket';
+import { useAuthStore } from '@/store/useAuthStore';
+import { connectSocket, disconnectSocket, getSocket, type RightnowSocket } from '@/services/socket';
 
-/** Connects the singleton socket on mount and disconnects on unmount. */
+/**
+ * Connect the singleton socket while authenticated; disconnect on logout.
+ * Returns the socket instance for components that need to emit directly.
+ */
 export function useSocket(): RightnowSocket {
-  const socket = getSocket();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
   useEffect(() => {
-    if (!socket.connected) {
-      socket.connect();
-    }
-    return () => {
-      socket.disconnect();
-    };
-  }, [socket]);
+    if (isAuthenticated) connectSocket();
+    else disconnectSocket();
+  }, [isAuthenticated]);
 
-  return socket;
+  return getSocket();
 }

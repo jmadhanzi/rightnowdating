@@ -1,29 +1,68 @@
-/**
- * RIGHTNOW splash. Black canvas with the wordmark centered in electric orange,
- * wrapped in the brand's concentric pulse rings.
- */
-export default function App() {
-  return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-s0">
-      {/* Concentric pulse rings (brand "live activity" motif) */}
-      <div className="pointer-events-none absolute flex h-64 w-64 items-center justify-center">
-        <span className="absolute h-full w-full rounded-full bg-hot/20 animate-pulse-ring" />
-        <span
-          className="absolute h-full w-full rounded-full bg-hot/10 animate-pulse-ring"
-          style={{ animationDelay: '0.6s' }}
-        />
-        <span
-          className="absolute h-full w-full rounded-full bg-hot/5 animate-pulse-ring"
-          style={{ animationDelay: '1.2s' }}
-        />
-      </div>
+import { lazy, Suspense, useEffect } from 'react';
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom';
 
-      <h1 className="relative z-10 select-none font-display text-6xl font-extrabold italic tracking-tighter text-hot drop-shadow-[0_0_30px_rgba(255,92,0,0.6)]">
-        RIGHTNOW
-      </h1>
-      <p className="relative z-10 mt-3 font-sans text-label-bold uppercase tracking-[0.3em] text-on-surface-variant">
-        Meet someone live
-      </p>
-    </main>
+import { ToastProvider } from '@/components/Toast';
+import Splash from '@/components/Splash';
+import { useAuthStore } from '@/store/useAuthStore';
+import { connectSocket, disconnectSocket } from '@/services/socket';
+
+const OnboardingScreen = lazy(() => import('@/screens/OnboardingScreen'));
+const GoLiveScreen = lazy(() => import('@/screens/GoLiveScreen'));
+const MapScreen = lazy(() => import('@/screens/MapScreen'));
+const MatchScreen = lazy(() => import('@/screens/MatchScreen'));
+const MeetupScreen = lazy(() => import('@/screens/MeetupScreen'));
+const ProfileScreen = lazy(() => import('@/screens/ProfileScreen'));
+const ChatsScreen = lazy(() => import('@/screens/ChatsScreen'));
+const ChatScreen = lazy(() => import('@/screens/ChatScreen'));
+const ReferralScreen = lazy(() => import('@/screens/ReferralScreen'));
+const PaywallScreen = lazy(() => import('@/screens/PaywallScreen'));
+
+function ProtectedRoute(): React.JSX.Element {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return isAuthenticated ? <Outlet /> : <Navigate to="/onboarding" replace />;
+}
+
+function RootRedirect(): React.JSX.Element {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return <Navigate to={isAuthenticated ? '/live' : '/onboarding'} replace />;
+}
+
+/** Connect the socket while authenticated; disconnect on logout. */
+function SocketManager(): null {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  useEffect(() => {
+    if (isAuthenticated) connectSocket();
+    else disconnectSocket();
+  }, [isAuthenticated]);
+  return null;
+}
+
+export default function App(): React.JSX.Element {
+  return (
+    <ToastProvider>
+      <BrowserRouter>
+        <SocketManager />
+        <Suspense fallback={<Splash />}>
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
+            <Route path="/onboarding" element={<OnboardingScreen />} />
+
+            <Route element={<ProtectedRoute />}>
+              <Route path="/live" element={<GoLiveScreen />} />
+              <Route path="/map" element={<MapScreen />} />
+              <Route path="/match/:matchId" element={<MatchScreen />} />
+              <Route path="/meetup/:matchId" element={<MeetupScreen />} />
+              <Route path="/profile" element={<ProfileScreen />} />
+              <Route path="/chats" element={<ChatsScreen />} />
+              <Route path="/chat/:matchId" element={<ChatScreen />} />
+              <Route path="/referral" element={<ReferralScreen />} />
+              <Route path="/upgrade" element={<PaywallScreen />} />
+            </Route>
+
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
+    </ToastProvider>
   );
 }

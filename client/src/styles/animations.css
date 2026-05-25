@@ -1,0 +1,142 @@
+/* Concentric pulse rings on a live pin. */
+@keyframes pring {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* Status dot ping. */
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* Breathing dot. */
+@keyframes dp {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.65);
+  }
+}
+
+/* Match-reveal bloom. */
+@keyframes bloom {
+  0% {
+    transform: scale(0.25);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Cards rising into view. */
+@keyframes fup {
+  0% {
+    transform: translateY(32px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* GO LIVE button glow pulse. */
+@keyframes gp {
+  0%,
+  100% {
+    box-shadow: 0 0 18px 2px var(--glow);
+  }
+  50% {
+    box-shadow: 0 0 48px 12px var(--glow);
+  }
+}
+
+/* Slide-up overlay. */
+@keyframes su {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Toast slide-in from the right. */
+@keyframes tin {
+  0% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Error shake. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-7px);
+  }
+  40% {
+    transform: translateX(7px);
+  }
+  60% {
+    transform: translateX(-5px);
+  }
+  80% {
+    transform: translateX(5px);
+  }
+}
+
+/* Utility classes */
+.anim-pring {
+  animation: pring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+.anim-ping {
+  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.anim-dp {
+  animation: dp 1.5s ease-in-out infinite;
+}
+.anim-bloom {
+  animation: bloom 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-fup {
+  animation: fup 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-gp {
+  animation: gp 2.4s ease-in-out infinite;
+}
+.anim-su {
+  animation: su 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.anim-shake {
+  animation: shake 0.4s ease-in-out both;
+}
+.anim-tin {
+  animation: tin 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}

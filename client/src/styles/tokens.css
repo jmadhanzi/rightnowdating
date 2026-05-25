@@ -1,0 +1,30 @@
+:root {
+  /* Accents */
+  --hot: #ff5c00;
+  --primary: #ffb59a;
+  --glow: rgba(255, 92, 0, 0.45);
+  --green: #00e55b;
+  --gg: rgba(0, 229, 91, 0.4);
+  --gold: #ffd700;
+
+  /* Surface ramp */
+  --s0: #080808;
+  --s1: #111111;
+  --s2: #181818;
+  --s3: #202020;
+  --s4: #2a2a2a;
+  --s5: #333333;
+
+  /* Text */
+  --tx: #e8e8e8;
+  --dm: #999999;
+  --mt: #555555;
+
+  /* Status */
+  --err: #ff4455;
+
+  /* Shape & layout */
+  --r: 18px;
+  --nav-h: 72px;
+  --hdr-h: 58px;
+}
