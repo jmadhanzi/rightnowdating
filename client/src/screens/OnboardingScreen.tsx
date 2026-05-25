@@ -5,7 +5,8 @@ import type { Vibe } from '@rightnow/shared';
 import Button from '@/components/Button';
 import { useToast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/useAuthStore';
-import { requestOtp as apiRequestOtp, subscribePush, updateProfile } from '@/services/api';
+import { requestOtp as apiRequestOtp, updateProfile } from '@/services/api';
+import { requestAndSubscribe } from '@/services/pushNotifications';
 import { VIBES } from '@/utils/vibes';
 
 const TOTAL_STEPS = 5;
@@ -62,15 +63,6 @@ function useCityPins(): { top: number; left: number; delay: number }[] {
       })),
     [],
   );
-}
-
-function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
-  const padding = '='.repeat((4 - (base64.length % 4)) % 4);
-  const normalized = (base64 + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(normalized);
-  const output = new Uint8Array(new ArrayBuffer(raw.length));
-  for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-  return output;
 }
 
 export default function OnboardingScreen(): React.JSX.Element {
@@ -238,31 +230,9 @@ export default function OnboardingScreen(): React.JSX.Element {
   };
 
   const enableNotifications = async (): Promise<void> => {
-    try {
-      if (typeof Notification !== 'undefined') {
-        const permission = await Notification.requestPermission();
-        const vapid = import.meta.env.VITE_VAPID_PUBLIC_KEY;
-        if (
-          permission === 'granted' &&
-          vapid &&
-          'serviceWorker' in navigator &&
-          'PushManager' in window
-        ) {
-          const reg = await navigator.serviceWorker.getRegistration();
-          if (reg) {
-            const sub = await reg.pushManager.subscribe({
-              userVisibleOnly: true,
-              applicationServerKey: urlBase64ToUint8Array(vapid),
-            });
-            await subscribePush(sub.toJSON());
-          }
-        }
-      }
-    } catch {
-      toast.error('Could not enable notifications');
-    } finally {
-      advance(5);
-    }
+    const { subscribed } = await requestAndSubscribe();
+    if (!subscribed) toast.info('Notifications can be enabled later in settings');
+    advance(5);
   };
 
   return (

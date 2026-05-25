@@ -36,6 +36,9 @@ function bindListeners(s: RightnowSocket): void {
 
   s.on('map:pin:added', (pin) => useMapStore.getState().addPin(pin));
   s.on('map:pin:removed', ({ sessionId }) => useMapStore.getState().removePin(sessionId));
+  s.on('map:pin:updated', ({ sessionId, isBoosted }) =>
+    useMapStore.getState().updatePin(sessionId, { boosted: isBoosted }),
+  );
   s.on('spark:received', (spark) => useMatchStore.getState().addSpark(spark));
   s.on('spark:expired', ({ sparkId }) => useMatchStore.getState().removeSpark(sparkId));
   s.on('match:created', (match) => useMatchStore.getState().setActiveMatch(match));

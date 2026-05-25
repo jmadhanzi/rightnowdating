@@ -1,11 +1,10 @@
 import cron from 'node-cron';
 import { pool } from '../db/index.js';
-import { redis } from '../db/redis.js';
 import { logger } from '../utils/logger.js';
-import { sendPushNotification } from './push.service.js';
+import { sendCityActivity } from './notifications.service.js';
 
 const WEEKS = 4; // 28 days → 4 occurrences of each weekday/hour
-const DEDUP_TTL = 4 * 60 * 60; // one demand push per user / 4h
+const DORMANT_HOURS = 6;
 const LOW_FACTOR = 0.7;
 const HIGH_FACTOR = 1.3;
 const MIN_PREDICTED = 15;
@@ -63,26 +62,12 @@ export async function runCityPrediction(city: string): Promise<DemandResult> {
       return { city, predictedAvg, currentCount, action, notified: 0 };
     }
 
-    // Eligible: complete profile, dormant 6h+.
-    const eligible = await pool.query<{ id: string }>(
-      `SELECT u.id
-         FROM users u JOIN profiles p ON p.id = u.id
-        WHERE LOWER(p.city) = $1
-          AND u.is_banned = false AND u.is_suspended = false
-          AND p.age IS NOT NULL AND p.display_name <> 'New User'
-          AND (u.last_active IS NULL OR u.last_active < NOW() - INTERVAL '6 hours')`,
-      [cityKey],
+    const title = action === 'high' ? `🌃 ${city} is heating up` : 'RIGHTNOW';
+    const notified = await sendCityActivity(
+      city,
+      { title, body: message, data: { type: 'city_pulse' } },
+      DORMANT_HOURS,
     );
-
-    let notified = 0;
-    for (const { id } of eligible.rows) {
-      const key = `demand:sent:${id}`;
-      const fresh = await redis.set(key, '1', 'EX', DEDUP_TTL, 'NX');
-      if (fresh === 'OK') {
-        await sendPushNotification(id, { title: 'RIGHTNOW', body: message });
-        notified += 1;
-      }
-    }
 
     logger.info({ city, action, predictedAvg, currentCount, notified }, 'demand prediction run');
     return { city, predictedAvg, currentCount, action, notified };

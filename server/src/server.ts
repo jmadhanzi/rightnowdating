@@ -3,9 +3,10 @@ import { buildApp } from './app.js';
 import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
-import { closeQueues } from './services/queue.service.js';
+import { closeQueues, scheduleMonthlyCredits } from './services/queue.service.js';
 import { ensureStripeCatalog } from './services/stripe.service.js';
 import { startDemandCron, stopDemandCron } from './services/demandPrediction.service.js';
+import { setupWebPush } from './services/notifications.service.js';
 
 async function start(): Promise<void> {
   const app = await buildApp();
@@ -17,6 +18,7 @@ async function start(): Promise<void> {
   await ensureStripeCatalog().catch((err) =>
     app.log.warn({ err }, 'Stripe catalog setup skipped/failed'),
   );
+  setupWebPush();
 
   // Attach Socket.io to Fastify's underlying HTTP server.
   const io = createSocketServer(app.server);
@@ -25,6 +27,9 @@ async function start(): Promise<void> {
     await app.listen({ port: env.PORT, host: env.HOST });
     app.log.info(`RIGHTNOW API listening on http://${env.HOST}:${env.PORT}`);
     startDemandCron();
+    await scheduleMonthlyCredits().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule monthly credits'),
+    );
   } catch (err) {
     app.log.error({ err }, 'Failed to start server');
     process.exit(1);

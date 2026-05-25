@@ -191,6 +191,7 @@ export interface MessageReceivedPayload {
 export interface ServerToClientEvents {
   'map:pin:added': (pin: MapPinPayload) => void;
   'map:pin:removed': (payload: { sessionId: string }) => void;
+  'map:pin:updated': (payload: { sessionId: string; isBoosted: boolean }) => void;
   'spark:received': (payload: SparkReceivedPayload) => void;
   'spark:expired': (payload: { sparkId: string }) => void;
   'match:created': (payload: MatchCreatedPayload) => void;

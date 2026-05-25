@@ -8,7 +8,7 @@ import {
   getOrCreateCustomer,
   createTrialSubscription,
 } from './stripe.service.js';
-import { notifyReward } from './push.service.js';
+import { notifyReward } from './notifications.service.js';
 
 // Unambiguous alphabet (no 0/O/1/I/L).
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';

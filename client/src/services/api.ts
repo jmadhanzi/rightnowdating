@@ -112,14 +112,22 @@ export async function confirmSubscription(
   return data;
 }
 export async function createBoost(sessionId: string): Promise<{ clientSecret: string | null }> {
-  const { data } = await api.post('/payments/boost', { sessionId });
+  const { data } = await api.post('/boost/purchase', { sessionId });
   return data;
 }
 export async function confirmBoost(
   paymentIntentId: string,
   sessionId: string,
 ): Promise<{ success: boolean; boostEndsAt: string }> {
-  const { data } = await api.post('/payments/boost-confirm', { paymentIntentId, sessionId });
+  const { data } = await api.post('/boost/confirm', { paymentIntentId, sessionId });
+  return data;
+}
+export async function getBoostStatus(): Promise<{
+  hasCreditAvailable: boolean;
+  credits: number;
+  activeBoost: { endsAt: string } | null;
+}> {
+  const { data } = await api.get('/boost/status');
   return data;
 }
 export async function cancelSubscription(): Promise<{ success: boolean; endsAt: string | null }> {

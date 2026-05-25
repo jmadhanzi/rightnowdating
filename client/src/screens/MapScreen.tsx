@@ -466,8 +466,10 @@ function createMarkerEl(
   wrap.appendChild(ring);
 
   if (pin.boosted) {
+    // Boosted pins float, gain a gold ring, and sit above the rest (organic lift).
+    wrap.className = 'anim-float';
+    wrap.style.zIndex = '10';
     const gold = document.createElement('div');
-    gold.className = 'anim-float';
     gold.style.cssText =
       'position:absolute;inset:-5px;border-radius:9999px;border:2px solid #FFD700';
     wrap.appendChild(gold);

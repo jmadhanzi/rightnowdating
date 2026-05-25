@@ -7,7 +7,7 @@ import { referralRoutes } from './referrals.route.js';
 import { paymentRoutes } from './payments.route.js';
 import { sparkRoutes } from './sparks.route.js';
 import { liveRoutes } from './live.route.js';
-import { boostRoutes } from './boost.route.js';
+import { boostRoutes } from './boosts.route.js';
 import { profileRoutes } from './profile.route.js';
 import { notificationRoutes } from './notifications.route.js';
 import { matchRoutes } from './matches.route.js';

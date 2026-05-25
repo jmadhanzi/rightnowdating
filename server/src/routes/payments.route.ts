@@ -5,18 +5,16 @@ import { z } from 'zod';
 import { logger } from '../utils/logger.js';
 import { pool } from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
-import { badRequest, notFound } from '../utils/http-error.js';
+import { notFound } from '../utils/http-error.js';
 import {
   getOrCreateCustomer,
   createSetupIntent,
   createSubscription,
-  createBoostPaymentIntent,
-  retrievePaymentIntent,
   cancelAtPeriodEnd,
   constructWebhookEvent,
 } from '../services/stripe.service.js';
 import { setUserPlan, clearUserPlan, type Plan } from '../services/plan.service.js';
-import { sendPushNotification } from '../services/push.service.js';
+import { sendPushNotification } from '../services/notifications.service.js';
 import { emitToUser } from '../socket/emitter.js';
 
 const SUBSCRIPTION_TRIAL_DAYS = 3;
@@ -31,12 +29,6 @@ const confirmSubBody = z.object({
   plan: z.enum(['plus', 'vip']),
   period: z.enum(['monthly', 'annual']),
 });
-const boostBody = z.object({ sessionId: z.string().uuid() });
-const boostConfirmBody = z.object({
-  paymentIntentId: z.string().min(1),
-  sessionId: z.string().uuid(),
-});
-
 function subStatus(stripeStatus: Stripe.Subscription.Status): string {
   // Map Stripe statuses onto our allowed set.
   if (stripeStatus === 'trialing') return 'trialing';
@@ -107,34 +99,6 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
       });
     },
   );
-
-  // Boost: create the PaymentIntent.
-  app.post('/payments/boost', { preHandler: authenticateToken }, async (request, reply) => {
-    const { sessionId } = boostBody.parse(request.body);
-    const { clientSecret } = await createBoostPaymentIntent(request.user.userId, sessionId);
-    return reply.send({ clientSecret });
-  });
-
-  // Boost: confirm payment and activate.
-  app.post('/payments/boost-confirm', { preHandler: authenticateToken }, async (request, reply) => {
-    const { paymentIntentId, sessionId } = boostConfirmBody.parse(request.body);
-    const { userId } = request.user;
-
-    const intent = await retrievePaymentIntent(paymentIntentId);
-    if (intent.status !== 'succeeded') {
-      throw badRequest('Payment has not completed.');
-    }
-
-    const boostEndsAt = new Date(Date.now() + BOOST_DURATION_MS);
-    await pool.query(
-      `INSERT INTO boosts (user_id, session_id, stripe_payment_intent_id, boost_start, boost_end, is_active)
-       VALUES ($1, $2, $3, NOW(), $4, true)`,
-      [userId, sessionId, paymentIntentId, boostEndsAt],
-    );
-
-    emitToUser(userId, 'boost:activated', { sessionId, boostEndsAt: boostEndsAt.toISOString() });
-    return reply.send({ success: true, boostEndsAt: boostEndsAt.toISOString() });
-  });
 
   // Restore purchases — resolve and re-cache the user's current plan.
   app.get('/payments/restore', { preHandler: authenticateToken }, async (request, reply) => {
