@@ -10,18 +10,26 @@ const PROFILE_CACHE_TTL = 300; // 5 minutes
 const profileCacheKey = (userId: string): string => `profile:${userId}`;
 
 const VIBE_VALUES = ['coffee', 'drinks', 'walk', 'food', 'explore', 'late', 'spicy'] as const;
-const patchBody = z.object({
-  displayName: z.string().min(1).max(30).optional(),
-  age: z.number().int().min(18).max(99).optional(),
-  avatar_emoji: z.string().min(1).max(10).optional(),
-  bio: z.string().max(500).optional(),
-  vibe: z.enum(VIBE_VALUES).optional(),
-  vibes: z.array(z.enum(VIBE_VALUES)).max(7).optional(),
-  city: z.string().min(1).max(50).optional(),
-  preferred_radius_miles: z.number().positive().max(50).optional(),
-  preferred_age_min: z.number().int().min(18).max(99).optional(),
-  preferred_age_max: z.number().int().min(18).max(99).optional(),
-});
+const patchBody = z
+  .object({
+    displayName: z.string().min(1).max(30).optional(),
+    age: z.number().int().min(18).max(99).optional(),
+    avatar_emoji: z.string().min(1).max(10).optional(),
+    bio: z.string().max(500).optional(),
+    vibe: z.enum(VIBE_VALUES).optional(),
+    vibes: z.array(z.enum(VIBE_VALUES)).max(7).optional(),
+    city: z.string().min(1).max(50).optional(),
+    preferred_radius_miles: z.number().positive().max(50).optional(),
+    preferred_age_min: z.number().int().min(18).max(99).optional(),
+    preferred_age_max: z.number().int().min(18).max(99).optional(),
+  })
+  .refine(
+    (d) =>
+      d.preferred_age_min === undefined ||
+      d.preferred_age_max === undefined ||
+      d.preferred_age_min <= d.preferred_age_max,
+    { message: 'preferred_age_min must be ≤ preferred_age_max', path: ['preferred_age_min'] },
+  );
 
 interface ProfileRow {
   id: string;

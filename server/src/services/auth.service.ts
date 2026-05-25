@@ -110,12 +110,16 @@ export interface VerifyOtpResult {
 }
 
 async function upsertUser(phone: string): Promise<{ userId: string; isNewUser: boolean }> {
-  const existing = await pool.query<{ id: string }>('SELECT id FROM users WHERE phone = $1', [
-    phone,
-  ]);
+  const existing = await pool.query<{ id: string; is_banned: boolean; is_suspended: boolean }>(
+    'SELECT id, is_banned, is_suspended FROM users WHERE phone = $1',
+    [phone],
+  );
 
   if (existing.rows.length > 0) {
-    const userId = existing.rows[0]!.id;
+    const row = existing.rows[0]!;
+    if (row.is_banned) throw unauthorized('This account has been permanently banned.');
+    if (row.is_suspended) throw unauthorized('This account is temporarily suspended.');
+    const userId = row.id;
     await pool.query(
       "UPDATE users SET last_active = NOW(), is_verified = true, verification_tier = 'phone' WHERE id = $1",
       [userId],

@@ -168,7 +168,10 @@ export async function safetyRoutes(app: FastifyInstance): Promise<void> {
     await recalculateTrustScore(reportedUserId);
 
     const recent = await pool.query<{ c: number }>(
-      "SELECT COUNT(*)::int AS c FROM reports WHERE reported_user_id = $1 AND created_at > NOW() - INTERVAL '7 days'",
+      `SELECT COUNT(DISTINCT reporter_id)::int AS c
+         FROM reports
+        WHERE reported_user_id = $1
+          AND created_at > NOW() - INTERVAL '7 days'`,
       [reportedUserId],
     );
     if ((recent.rows[0]?.c ?? 0) >= REPORT_SUSPEND_THRESHOLD) {

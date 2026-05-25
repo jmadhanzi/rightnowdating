@@ -28,8 +28,13 @@ export async function liveRoutes(app: FastifyInstance): Promise<void> {
     const { userId } = request.user;
 
     // Daily quota gate: the 3rd+ live session in a day requires Plus.
+    // Count today's sessions using UTC date so the quota is consistent regardless
+    // of where the server is deployed.
     const todayRes = await pool.query<{ c: number }>(
-      'SELECT COUNT(*)::int AS c FROM live_sessions WHERE user_id = $1 AND created_at::date = CURRENT_DATE',
+      `SELECT COUNT(*)::int AS c
+         FROM live_sessions
+        WHERE user_id = $1
+          AND (created_at AT TIME ZONE 'UTC')::date = (NOW() AT TIME ZONE 'UTC')::date`,
       [userId],
     );
     const todayCount = todayRes.rows[0]?.c ?? 0;

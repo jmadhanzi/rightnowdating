@@ -20,6 +20,13 @@ export default function CountdownTimer({
 }: CountdownTimerProps): React.JSX.Element {
   const [remaining, setRemaining] = useState(() => secondsLeft(expiresAt));
   const firedRef = useRef(false);
+  // Store onExpire in a ref so a new arrow-function identity from the parent
+  // doesn't cause the interval to tear down and re-mount on every render,
+  // which would reset firedRef and call the callback multiple times.
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  });
 
   useEffect(() => {
     firedRef.current = false;
@@ -31,12 +38,14 @@ export default function CountdownTimer({
       if (next <= 0 && !firedRef.current) {
         firedRef.current = true;
         clearInterval(id);
-        onExpire?.();
+        onExpireRef.current?.();
       }
     }, 1000);
 
     return () => clearInterval(id);
-  }, [expiresAt, onExpire]);
+    // Intentionally exclude onExpire — it's captured via ref above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiresAt]);
 
   const urgent = remaining < 30;
   const warning = !urgent && remaining < 120;
