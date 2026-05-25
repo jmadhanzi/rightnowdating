@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'node:http';
-import { Server as SocketServer, type Socket } from 'socket.io';
+import { Server as SocketServer } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import type {
   ClientToServerEvents,
@@ -15,26 +15,10 @@ import { redis } from '../db/redis.js';
 import { pool } from '../db/index.js';
 import { applyFuzzyLocation, getNearbyUsers } from '../services/location.service.js';
 import { suggestVenues } from '../services/venues.service.js';
-import { checkMessageSafety } from '../services/openai.service.js';
-
-interface SocketData {
-  userId: string;
-  phone: string;
-  city: string;
-}
-
-type RNServer = SocketServer<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  Record<string, never>,
-  SocketData
->;
-type RNSocket = Socket<
-  ClientToServerEvents,
-  ServerToClientEvents,
-  Record<string, never>,
-  SocketData
->;
+import { scanMessage } from '../services/aiSafety.service.js';
+import { scheduleCheckin } from '../services/safetyScheduler.service.js';
+import type { RNServer, RNSocket, SocketData } from './types.js';
+import { setIO } from './emitter.js';
 
 export type RightnowSocketServer = RNServer;
 
@@ -49,7 +33,9 @@ const sparkExpiryKey = (sparkId: string): string => `spark_expiry:${sparkId}`;
 const SPARK_TTL_SECONDS = 7 * 60;
 const SESSION_WARN_MS = 5 * 60 * 1000;
 const MEETUP_LEAD_MS = 20 * 60 * 1000; // time allotted to reach the venue
-const CHECKIN_AFTER_MS = 30 * 60 * 1000; // safety ping after meetup time
+
+const checkinPendingKey = (matchId: string, userId: string): string =>
+  `checkin:pending:${matchId}:${userId}`;
 
 // Per-session expiry/warning timers so go:offline can cancel them.
 const sessionTimers = new Map<string, NodeJS.Timeout[]>();
@@ -154,23 +140,6 @@ function scheduleSessionExpiry(
   );
 
   sessionTimers.set(sessionId, timers);
-}
-
-function scheduleCheckin(
-  io: RNServer,
-  matchId: string,
-  user1: string,
-  user2: string,
-  meetupTime: Date,
-): void {
-  const delay = meetupTime.getTime() + CHECKIN_AFTER_MS - Date.now();
-  setTimeout(
-    () => {
-      io.to(userRoom(user1)).emit('date:checkin:ping', { matchId });
-      io.to(userRoom(user2)).emit('date:checkin:ping', { matchId });
-    },
-    Math.max(delay, 0),
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -358,7 +327,7 @@ async function handleSparkAccept(
   io.to(userRoom(sender_id)).emit('match:created', matchPayload);
   io.to(userRoom(receiverId)).emit('match:created', matchPayload);
 
-  scheduleCheckin(io, matchId, sender_id, receiverId, meetupTime);
+  await scheduleCheckin(matchId, meetupTime);
 }
 
 async function handleSparkDecline(socket: RNSocket, payload: { sparkId: string }): Promise<void> {
@@ -400,6 +369,20 @@ async function handleMessageSend(
   );
   const message = rows[0]!;
 
+  // Two-stage AI safety scan (moderation → GPT). Fast and fail-open.
+  const scan = await scanMessage(content, matchId, senderId);
+
+  if (scan.action === 'block') {
+    await pool.query(
+      'UPDATE messages SET is_flagged = true, ai_safety_score = $1, deleted_at = NOW() WHERE id = $2',
+      [scan.score, message.id],
+    );
+    socket.emit('message:blocked', {
+      reason: scan.concern ?? 'This message was blocked for safety.',
+    });
+    return;
+  }
+
   io.to(userRoom(recipientId)).emit('message:received', {
     id: message.id,
     matchId,
@@ -408,19 +391,16 @@ async function handleMessageSend(
     createdAt: new Date(message.created_at).toISOString(),
   });
 
-  // AI safety runs out-of-band — never blocks delivery.
-  void checkMessageSafety(content)
-    .then(async ({ flagged, score, reason }) => {
-      await pool.query('UPDATE messages SET is_flagged = $1, ai_safety_score = $2 WHERE id = $3', [
-        flagged,
-        score,
-        message.id,
-      ]);
-      if (flagged) {
-        io.to(userRoom(senderId)).emit('message:flagged', { messageId: message.id, reason });
-      }
-    })
-    .catch((err) => logger.warn({ err }, 'AI safety post-processing failed'));
+  if (scan.action === 'flag') {
+    await pool.query('UPDATE messages SET is_flagged = true, ai_safety_score = $1 WHERE id = $2', [
+      scan.score,
+      message.id,
+    ]);
+    socket.emit('message:flagged', {
+      messageId: message.id,
+      reason: scan.concern ?? 'This message was flagged.',
+    });
+  }
 }
 
 async function handleCheckinConfirm(socket: RNSocket, payload: { matchId: string }): Promise<void> {
@@ -432,6 +412,8 @@ async function handleCheckinConfirm(socket: RNSocket, payload: { matchId: string
       WHERE id = $1`,
     [payload.matchId, userId],
   );
+  // Clear the pending safety check-in so escalation won't fire.
+  await redis.del(checkinPendingKey(payload.matchId, userId));
 }
 
 // ---------------------------------------------------------------------------
@@ -500,6 +482,9 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
       credentials: true,
     },
   });
+
+  // Share the instance so services/queues can emit to users.
+  setIO(io);
 
   // JWT auth on the handshake.
   io.use((socket, next) => {

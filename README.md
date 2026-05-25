@@ -193,11 +193,46 @@ same JWT as the REST API (`io({ auth: { token } })`), joins each user to a
 - **Safety:** chat runs an async OpenAI moderation check (never blocking
   delivery); a check-in ping fires 30 min after the meetup time.
 
+## Trust & safety
+
+**Trust score** (`services/trustScore.service.ts`) is a 0–100 value:
+phone +20, ID +25, photo match +10, show-up rate ×25, avg rating ×3 (3–15),
+account age +0.5/week (max 5); minus 5/report, 10/safety concern, 20 if banned.
+`recalculateTrustScore` persists and pushes `trust:updated` over the socket.
+Score drives map visibility (25/60/85/100% + priority at 81+).
+
+**Verification** (`routes/verification.route.ts`):
+
+| Endpoint                      | Purpose                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| `POST /verify/id`             | Start a Stripe Identity session → `{ clientSecret, url }`                                        |
+| `POST /verify/photo-match`    | OpenAI Vision selfie ↔ profile-photo check                                                       |
+| `POST /verify/stripe-webhook` | On `identity.verification_session.verified` → set verified, recalc, emit `verification:complete` |
+
+**Safety** (`routes/safety.route.ts`):
+
+| Endpoint                        | Purpose                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------ |
+| `POST /safety/sos`              | Store exact GPS (only here), SMS trusted contacts, flag the matched user |
+| `POST /safety/trusted-contacts` | Replace contacts (max 3)                                                 |
+| `POST /safety/report`           | Report a user, recalc their score, auto-suspend at 3 reports/7 days      |
+
+**AI message safety** (`services/aiSafety.service.ts`): two-stage scan —
+cheap moderation first, escalating to GPT-4o-mini only when a category exceeds
+0.3; GPT safety score < 0.3 blocks (`message:blocked`), 0.3–0.6 flags
+(`message:flagged`). Flagged/blocked content is logged to `moderation_logs`.
+
+**Safety scheduler** (`services/queue.service.ts`, `safetyScheduler.service.ts`):
+Bull queues (`safety-check`, `notification`) backed by Redis. A check-in is
+scheduled for meetup + 30 min; unanswered after 10 min it SMSes trusted
+contacts, and a second check-in runs at + 60 min. Failed jobs are persisted to
+`job_failures`.
+
 ## Testing
 
-The server suite (Jest + Supertest) covers the full auth flow — request/verify,
-invalid phone, wrong/expired OTP, reuse prevention, refresh, and logout
-invalidation. It runs against a real Postgres + Redis:
+The server suite (Jest + Supertest) covers the auth flow and the trust-score /
+safety logic (score math + deductions, visibility tiers, trusted-contacts
+limits, report-driven auto-suspension). It runs against a real Postgres + Redis:
 
 ```bash
 docker compose up -d        # or a local Postgres+PostGIS and Redis

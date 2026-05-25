@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { healthRoutes } from './health.route.js';
 import { authRoutes } from './auth.route.js';
+import { verificationRoutes } from './verification.route.js';
+import { safetyRoutes } from './safety.route.js';
 
 /**
  * Registers all HTTP routes. Feature routers (sessions, matches, chat) are
@@ -10,6 +12,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Unprefixed infra + auth endpoints.
   await app.register(healthRoutes);
   await app.register(authRoutes);
+  await app.register(verificationRoutes);
+  await app.register(safetyRoutes);
 
   // Versioned application API.
   await app.register(

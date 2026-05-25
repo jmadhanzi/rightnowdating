@@ -3,6 +3,7 @@ import { buildApp } from './app.js';
 import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
+import { closeQueues } from './services/queue.service.js';
 
 async function start(): Promise<void> {
   const app = await buildApp();
@@ -27,6 +28,7 @@ async function start(): Promise<void> {
     app.log.info({ signal }, 'Shutting down...');
     io.close();
     await app.close();
+    await closeQueues().catch(() => undefined);
     await closeDatabase().catch(() => undefined);
     await closeRedis().catch(() => undefined);
     process.exit(0);

@@ -192,8 +192,11 @@ export interface ServerToClientEvents {
   'match:created': (payload: MatchCreatedPayload) => void;
   'message:received': (payload: MessageReceivedPayload) => void;
   'message:flagged': (payload: { messageId: string; reason: string }) => void;
+  'message:blocked': (payload: { reason: string }) => void;
   'date:checkin:ping': (payload: { matchId: string }) => void;
   'session:expiring': (payload: { sessionId: string; expiresAt: string }) => void;
+  'trust:updated': (payload: { score: number }) => void;
+  'verification:complete': (payload: { type: string }) => void;
   'app:error': (payload: { event: string; message: string }) => void;
 }
 

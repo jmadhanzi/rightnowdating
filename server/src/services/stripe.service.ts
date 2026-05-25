@@ -27,6 +27,19 @@ export async function createCheckoutSession(params: {
   });
 }
 
+/** Create a Stripe Identity verification session for government-ID checks. */
+export async function createIdentitySession(
+  userId: string,
+  returnUrl?: string,
+): Promise<{ clientSecret: string | null; url: string | null }> {
+  const session = await getStripe().identity.verificationSessions.create({
+    type: 'document',
+    metadata: { userId },
+    ...(returnUrl ? { return_url: returnUrl } : {}),
+  });
+  return { clientSecret: session.client_secret, url: session.url };
+}
+
 /** Verify and parse a Stripe webhook payload. */
 export function constructWebhookEvent(rawBody: Buffer | string, signature: string): Stripe.Event {
   if (!env.STRIPE_WEBHOOK_SECRET) {
