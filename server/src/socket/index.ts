@@ -44,14 +44,6 @@ const sessionTimers = new Map<string, NodeJS.Timeout[]>();
 // ---------------------------------------------------------------------------
 // Small DB helpers
 // ---------------------------------------------------------------------------
-async function getTrustScore(userId: string): Promise<number> {
-  const { rows } = await pool.query<{ score: number }>(
-    'SELECT score FROM trust_scores WHERE user_id = $1',
-    [userId],
-  );
-  return rows[0] ? Number(rows[0].score) : 50;
-}
-
 async function getSenderPreview(userId: string): Promise<{
   userId: string;
   displayName: string;
@@ -168,7 +160,7 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   await redis.set(userSessionKey(userId), sessionId);
   await redis.sadd(citySetKey(city), sessionId);
 
-  const trustScore = await getTrustScore(userId);
+  const me = await getSenderPreview(userId);
 
   // Broadcast the new pin to everyone else in the city.
   socket.to(cityRoom(city)).emit('map:pin:added', {
@@ -176,7 +168,11 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
     fuzzyLat,
     fuzzyLng,
     vibe,
-    trustScore,
+    trustScore: me.trustScore,
+    displayName: me.displayName,
+    age: me.age,
+    emoji: me.emoji,
+    boosted: false,
   });
 
   // Send the joining user a snapshot of nearby live pins.
@@ -188,6 +184,10 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
       fuzzyLng: n.fuzzyLng,
       vibe: n.vibe,
       trustScore: n.trustScore,
+      displayName: n.displayName,
+      age: n.age,
+      emoji: n.emoji,
+      boosted: false,
     });
   }
 

@@ -168,3 +168,17 @@
 .step-out {
   animation: stepout 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
+
+/* Gentle float (boosted pin gold ring). */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.08);
+  }
+}
+.anim-float {
+  animation: float 2.4s ease-in-out infinite;
+}

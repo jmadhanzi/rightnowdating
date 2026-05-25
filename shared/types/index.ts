@@ -141,6 +141,10 @@ export interface MapPinPayload {
   fuzzyLng: number;
   vibe: Vibe;
   trustScore: number;
+  displayName?: string;
+  age?: number | null;
+  emoji?: string;
+  boosted?: boolean;
 }
 
 export interface SparkSenderPreview {
