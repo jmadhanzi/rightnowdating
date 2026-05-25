@@ -1,6 +1,5 @@
 import twilio, { type Twilio } from 'twilio';
 import { env } from '../utils/env.js';
-import { logger } from '../utils/logger.js';
 
 let client: Twilio | null = null;
 
@@ -12,33 +11,10 @@ function getClient(): Twilio {
   return client;
 }
 
-/** Send an OTP code via Twilio Verify (preferred) or a raw SMS fallback. */
-export async function sendOtp(phone: string): Promise<void> {
-  const c = getClient();
-  if (env.TWILIO_VERIFY_SERVICE_SID) {
-    await c.verify.v2
-      .services(env.TWILIO_VERIFY_SERVICE_SID)
-      .verifications.create({ to: phone, channel: 'sms' });
-    return;
-  }
+/** Send a plain SMS. Throws if Twilio credentials/from-number are missing. */
+export async function sendSms(to: string, body: string): Promise<void> {
   if (!env.TWILIO_FROM_NUMBER) {
-    throw new Error('Twilio Verify service or from-number required to send OTP');
+    throw new Error('TWILIO_FROM_NUMBER is required to send SMS');
   }
-  await c.messages.create({
-    to: phone,
-    from: env.TWILIO_FROM_NUMBER,
-    body: 'Your RIGHTNOW verification code is on its way.',
-  });
-}
-
-/** Check an OTP code against Twilio Verify. */
-export async function verifyOtp(phone: string, code: string): Promise<boolean> {
-  if (!env.TWILIO_VERIFY_SERVICE_SID) {
-    throw new Error('Twilio Verify service SID is required to verify OTP');
-  }
-  const check = await getClient()
-    .verify.v2.services(env.TWILIO_VERIFY_SERVICE_SID)
-    .verificationChecks.create({ to: phone, code });
-  logger.debug({ status: check.status }, 'otp verification check');
-  return check.status === 'approved';
+  await getClient().messages.create({ to, from: env.TWILIO_FROM_NUMBER, body });
 }

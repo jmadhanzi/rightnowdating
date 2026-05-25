@@ -31,7 +31,9 @@ rightnow/
 │   │   ├── services/       # Twilio, Stripe, OpenAI, Cloudinary, Places
 │   │   ├── db/             # Pool, Redis, migrations/, migrate.ts, seed.ts
 │   │   ├── socket/         # Socket.io server
-│   │   ├── utils/          # env (Zod), logger
+│   │   ├── utils/          # env (Zod), logger, http-error
+│   │   ├── tests/          # Jest + Supertest suites
+│   │   ├── app.ts          # buildApp() — plugins + routes (testable)
 │   │   └── server.ts       # Entry point (Fastify on :3000)
 │   └── package.json
 ├── client/                 # React + Vite SPA
@@ -83,7 +85,7 @@ cp .env.example .env
 ```
 
 Fill in the values. For a quick local start you only need the defaults plus a
-`JWT_SECRET` (>= 16 chars). Third-party keys (Twilio, Stripe, etc.) are optional
+`JWT_SECRET` (>= 32 chars). Third-party keys (Twilio, Stripe, etc.) are optional
 — the server boots without them and only errors if you call those features.
 
 The client reads `VITE_*` variables. Create `client/.env` (or rely on Vite's
@@ -140,6 +142,44 @@ Run them individually with `npm run dev:server` / `npm run dev:client`.
 | `npm run lint`       | Lint all workspaces (ESLint)     |
 | `npm run format`     | Format with Prettier             |
 | `npm run typecheck`  | Type-check all workspaces        |
+
+---
+
+## Authentication
+
+Phone + OTP, issuing JWTs. All endpoints are unprefixed (`/auth/...`), Helmet
+sets security headers, CORS is locked to `CLIENT_ORIGIN`, and every route is
+rate limited via a Redis-backed store.
+
+| Endpoint                 | Body                | Returns                                            |
+| ------------------------ | ------------------- | -------------------------------------------------- |
+| `POST /auth/request-otp` | `{ phone }` (E.164) | `{ success, expiresIn }`                           |
+| `POST /auth/verify-otp`  | `{ phone, otp }`    | `{ accessToken, refreshToken, isNewUser, userId }` |
+| `POST /auth/refresh`     | `{ refreshToken }`  | `{ accessToken }`                                  |
+| `POST /auth/logout`      | `{ refreshToken }`  | `{ success }`                                      |
+
+- Phone numbers are validated with `libphonenumber-js`.
+- OTPs are 6 digits, stored in Redis (`otp:{phone}`, 10-min TTL), compared in
+  constant time, and deleted on success (single-use). Max 3 requests per phone
+  per 10 minutes.
+- Access tokens carry `{ userId, phone }`; refresh tokens are UUIDs in Redis
+  (`refresh:{userId}` + reverse index), valid 30 days.
+- With `DEMO_MODE=true`, OTPs are logged instead of texted and the code
+  `123456` is accepted for any phone — local dev only.
+- Protect routes with `authenticateToken` (rejects) or `optionalAuth`
+  (`server/src/middleware/auth.ts`); both populate `request.user`.
+
+## Testing
+
+The server suite (Jest + Supertest) covers the full auth flow — request/verify,
+invalid phone, wrong/expired OTP, reuse prevention, refresh, and logout
+invalidation. It runs against a real Postgres + Redis:
+
+```bash
+docker compose up -d        # or a local Postgres+PostGIS and Redis
+npm run db:migrate --workspace server
+npm run test --workspace server
+```
 
 ---
 

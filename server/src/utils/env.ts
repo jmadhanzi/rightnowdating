@@ -15,6 +15,9 @@ const envSchema = z.object({
   API_URL: z.string().url().default('http://localhost:3000'),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // When true, OTPs are logged instead of sent via Twilio, and the demo code
+  // 123456 is accepted for any phone. Never enable in production.
+  DEMO_MODE: booleanish.default('false'),
 
   // Postgres
   DATABASE_URL: z.string().min(1),
@@ -25,7 +28,7 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1),
 
   // Auth
-  JWT_SECRET: z.string().min(16),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('30d'),
 

@@ -104,7 +104,7 @@ export interface AuthTokens {
 }
 
 export interface JwtPayload {
-  sub: string; // user id
+  userId: string;
   phone: string;
 }
 

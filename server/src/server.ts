@@ -1,44 +1,11 @@
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import jwt from '@fastify/jwt';
-import rateLimit from '@fastify/rate-limit';
-
 import { env } from './utils/env.js';
-import { loggerOptions } from './utils/logger.js';
-import { registerRoutes } from './routes/index.js';
-import { errorHandler } from './middleware/error-handler.js';
+import { buildApp } from './app.js';
 import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
 
-async function buildServer() {
-  const app = Fastify({
-    logger: loggerOptions,
-    trustProxy: true,
-  });
-
-  app.setErrorHandler(errorHandler);
-
-  // Security & platform plugins
-  await app.register(helmet, { contentSecurityPolicy: false });
-  await app.register(cors, {
-    origin: env.CLIENT_ORIGIN.split(',').map((o) => o.trim()),
-    credentials: true,
-  });
-  await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
-  await app.register(jwt, {
-    secret: env.JWT_SECRET,
-    sign: { expiresIn: env.JWT_ACCESS_EXPIRES_IN },
-  });
-
-  await registerRoutes(app);
-
-  return app;
-}
-
 async function start(): Promise<void> {
-  const app = await buildServer();
+  const app = await buildApp();
 
   // Best-effort infra checks — warn (don't crash) so /health stays available
   // even before Postgres/Redis are up locally.
