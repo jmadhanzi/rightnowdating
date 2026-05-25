@@ -41,6 +41,7 @@ const sparkExpiryKey = (sparkId: string): string => `spark_expiry:${sparkId}`;
 
 const SESSION_WARN_MS = 5 * 60 * 1000;
 const MEETUP_LEAD_MS = 20 * 60 * 1000; // time allotted to reach the venue
+const MAX_MESSAGE_LENGTH = 1000;
 
 const checkinPendingKey = (matchId: string, userId: string): string =>
   `checkin:pending:${matchId}:${userId}`;
@@ -147,6 +148,20 @@ function scheduleSessionExpiry(
 // ---------------------------------------------------------------------------
 async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePayload): Promise<void> {
   const { userId, city } = socket.data;
+
+  // Guard: deactivate any existing active session before creating a new one
+  // to prevent duplicate live pins for the same user.
+  const existingSessionId = await redis.get(userSessionKey(userId));
+  if (existingSessionId) {
+    await pool.query(
+      'UPDATE live_sessions SET is_active = false WHERE id = $1 AND is_active = true',
+      [existingSessionId],
+    );
+    await redis.srem(citySetKey(city), existingSessionId);
+    clearSessionTimers(existingSessionId);
+    io.to(cityRoom(city)).emit('map:pin:removed', { sessionId: existingSessionId });
+  }
+
   const { vibe, windowMinutes, latitude, longitude, radiusMiles } = payload;
   const { fuzzyLat, fuzzyLng } = applyFuzzyLocation(latitude, longitude);
   const expiresAt = new Date(Date.now() + windowMinutes * 60_000);
@@ -164,7 +179,7 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   );
   const sessionId = rows[0]!.id;
 
-  await redis.set(userSessionKey(userId), sessionId);
+  await redis.set(userSessionKey(userId), sessionId, 'EX', windowMinutes * 60);
   await redis.sadd(citySetKey(city), sessionId);
 
   const me = await getSenderPreview(userId);
@@ -205,15 +220,19 @@ async function handleGoOffline(io: RNServer, socket: RNSocket): Promise<void> {
   const { userId, city } = socket.data;
   const sessionId = await redis.get(userSessionKey(userId));
 
-  await pool.query(
-    'UPDATE live_sessions SET is_active = false WHERE user_id = $1 AND is_active = true',
+  // Deactivate all active sessions for this user (defensive — normally only one).
+  const { rows: activeSessions } = await pool.query<{ id: string }>(
+    'UPDATE live_sessions SET is_active = false WHERE user_id = $1 AND is_active = true RETURNING id',
     [userId],
   );
   await redis.del(userSessionKey(userId));
 
+  for (const { id } of activeSessions) {
+    await redis.srem(citySetKey(city), id);
+    clearSessionTimers(id);
+  }
+
   if (sessionId) {
-    await redis.srem(citySetKey(city), sessionId);
-    clearSessionTimers(sessionId);
     io.to(cityRoom(city)).emit('map:pin:removed', { sessionId });
   }
 }
@@ -226,10 +245,14 @@ async function handleSparkSend(
   const senderId = socket.data.userId;
   const { targetSessionId } = payload;
 
-  // Rate limit: 10 sparks per 30 minutes per user.
+  // Atomic rate-limit: INCR + EXPIRE in a single round-trip so the expire
+  // can never silently fail after a successful incr.
   const rateKey = `spark:rate:${senderId}`;
-  const sparkCount = await redis.incr(rateKey);
-  if (sparkCount === 1) await redis.expire(rateKey, 30 * 60);
+  const [[, sparkCount]] = (await redis
+    .pipeline()
+    .incr(rateKey)
+    .expire(rateKey, 30 * 60)
+    .exec()) as [[null, number], [null, number]];
   if (sparkCount > 10) {
     socket.emit('app:error', {
       event: 'spark:send',
@@ -354,6 +377,20 @@ async function handleMessageSend(
   const senderId = socket.data.userId;
   const { matchId, content } = payload;
 
+  // Validate content before any DB work.
+  const trimmed = content.trim();
+  if (!trimmed) {
+    socket.emit('app:error', { event: 'message:send', message: 'Message cannot be empty.' });
+    return;
+  }
+  if (trimmed.length > MAX_MESSAGE_LENGTH) {
+    socket.emit('app:error', {
+      event: 'message:send',
+      message: `Message must be ${MAX_MESSAGE_LENGTH} characters or fewer.`,
+    });
+    return;
+  }
+
   const match = await pool.query<{ user1_id: string; user2_id: string }>(
     'SELECT user1_id, user2_id FROM matches WHERE id = $1',
     [matchId],
@@ -372,12 +409,12 @@ async function handleMessageSend(
   const { rows } = await pool.query<{ id: string; created_at: Date }>(
     `INSERT INTO messages (match_id, sender_id, content) VALUES ($1, $2, $3)
      RETURNING id, created_at`,
-    [matchId, senderId, content],
+    [matchId, senderId, trimmed],
   );
   const message = rows[0]!;
 
   // Two-stage AI safety scan (moderation → GPT). Fast and fail-open.
-  const scan = await scanMessage(content, matchId, senderId);
+  const scan = await scanMessage(trimmed, matchId, senderId);
 
   if (!scan.isSafe) {
     await pool.query(
@@ -394,7 +431,7 @@ async function handleMessageSend(
     id: message.id,
     matchId,
     senderId,
-    content,
+    content: trimmed,
     createdAt: new Date(message.created_at).toISOString(),
   });
 
@@ -553,34 +590,39 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
       await redis.set(socketKey(socket.id), userId);
 
       logger.debug({ socketId: socket.id, userId, city }, 'socket connected');
-    })().catch((err) => logger.error({ err }, 'socket connection setup failed'));
 
-    socket.on('go:live', (payload) =>
-      guard(socket, 'go:live', () => handleGoLive(io, socket, payload)),
-    );
-    socket.on('go:offline', () => guard(socket, 'go:offline', () => handleGoOffline(io, socket)));
-    socket.on('spark:send', (payload) =>
-      guard(socket, 'spark:send', () => handleSparkSend(io, socket, payload)),
-    );
-    socket.on('spark:accept', (payload) =>
-      guard(socket, 'spark:accept', () => handleSparkAccept(io, socket, payload)),
-    );
-    socket.on('spark:decline', (payload) =>
-      guard(socket, 'spark:decline', () => handleSparkDecline(socket, payload)),
-    );
-    socket.on('message:send', (payload) =>
-      guard(socket, 'message:send', () => handleMessageSend(io, socket, payload)),
-    );
-    socket.on('checkin:confirm', (payload) =>
-      guard(socket, 'checkin:confirm', () => handleCheckinConfirm(socket, payload)),
-    );
-    socket.on('typing:start', (payload) =>
-      guard(socket, 'typing:start', () => handleTyping(io, socket, payload)),
-    );
+      // Register event handlers only AFTER city is populated so socket.data.city
+      // is never undefined inside handlers.
+      socket.on('go:live', (payload: GoLivePayload) =>
+        guard(socket, 'go:live', () => handleGoLive(io, socket, payload)),
+      );
+      socket.on('go:offline', () => guard(socket, 'go:offline', () => handleGoOffline(io, socket)));
+      socket.on('spark:send', (payload: { targetSessionId: string }) =>
+        guard(socket, 'spark:send', () => handleSparkSend(io, socket, payload)),
+      );
+      socket.on('spark:accept', (payload: { sparkId: string }) =>
+        guard(socket, 'spark:accept', () => handleSparkAccept(io, socket, payload)),
+      );
+      socket.on('spark:decline', (payload: { sparkId: string }) =>
+        guard(socket, 'spark:decline', () => handleSparkDecline(socket, payload)),
+      );
+      socket.on('message:send', (payload: { matchId: string; content: string }) =>
+        guard(socket, 'message:send', () => handleMessageSend(io, socket, payload)),
+      );
+      socket.on('checkin:confirm', (payload: { matchId: string }) =>
+        guard(socket, 'checkin:confirm', () => handleCheckinConfirm(socket, payload)),
+      );
+      socket.on('typing:start', (payload: { matchId: string }) =>
+        guard(socket, 'typing:start', () => handleTyping(io, socket, payload)),
+      );
 
-    socket.on('disconnect', (reason) => {
-      void redis.del(socketKey(socket.id)).catch(() => undefined);
-      logger.debug({ socketId: socket.id, reason }, 'socket disconnected');
+      socket.on('disconnect', (reason) => {
+        void redis.del(socketKey(socket.id)).catch(() => undefined);
+        logger.debug({ socketId: socket.id, reason }, 'socket disconnected');
+      });
+    })().catch((err) => {
+      logger.error({ err }, 'socket connection setup failed');
+      socket.disconnect(true);
     });
   });
 

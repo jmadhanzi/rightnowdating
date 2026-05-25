@@ -247,17 +247,31 @@ export async function getReferralStats(userId: string): Promise<ReferralStats> {
         WHERE LOWER(p.city) = $1
         GROUP BY p.id, p.display_name
      )
-     SELECT * FROM ranked`,
+     SELECT * FROM ranked ORDER BY rank LIMIT 10`,
     [city],
   );
 
-  const cityLeaderboard = leaderboardRes.rows.slice(0, 10).map((row) => ({
+  const cityLeaderboard = leaderboardRes.rows.map((row) => ({
     rank: Number(row.rank),
     userId: row.id,
     displayName: row.display_name,
     count: Number(row.cnt),
   }));
-  const userRank = leaderboardRes.rows.find((row) => row.id === userId)?.rank ?? 0;
+
+  // Fetch the current user's city rank independently — they may be outside top 10.
+  const userRankRes = await pool.query<{ rank: number }>(
+    `WITH ranked AS (
+       SELECT p.id,
+              ROW_NUMBER() OVER (ORDER BY COUNT(r.id) DESC)::int AS rank
+         FROM profiles p
+         JOIN referrals r ON r.referrer_id = p.id AND r.status = 'first_date'
+        WHERE LOWER(p.city) = $1
+        GROUP BY p.id
+     )
+     SELECT rank FROM ranked WHERE id = $2`,
+    [city, userId],
+  );
+  const userRank = userRankRes.rows[0]?.rank ?? 0;
 
   return {
     referralCode,

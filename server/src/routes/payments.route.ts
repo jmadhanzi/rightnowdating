@@ -181,10 +181,15 @@ async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
       const userId = sub.metadata.userId;
       const plan = (sub.metadata.plan as Plan) ?? 'free';
       if (!userId) return;
-      await pool.query(`UPDATE subscriptions SET status = $1 WHERE stripe_subscription_id = $2`, [
-        subStatus(sub.status),
-        sub.id,
-      ]);
+      const periodEnd =
+        (sub as unknown as { current_period_end?: number }).current_period_end ?? null;
+      await pool.query(
+        `UPDATE subscriptions
+            SET status = $1,
+                current_period_end = CASE WHEN $3::bigint IS NOT NULL THEN to_timestamp($3) ELSE current_period_end END
+          WHERE stripe_subscription_id = $2`,
+        [subStatus(sub.status), sub.id, periodEnd],
+      );
       if (sub.status === 'active' || sub.status === 'trialing') {
         await setUserPlan(userId, plan);
       }

@@ -51,7 +51,9 @@ export default function MatchScreen(): React.JSX.Element {
 
   const urgent = progress * (Date.parse(match.expiresAt) - Date.parse(match.createdAt)) < 60_000;
   const accept = (): void => {
-    if (match.sparkId) sparkAccept(match.sparkId);
+    // The spark was already accepted by the server when match:created was emitted;
+    // calling sparkAccept again would be a no-op (or error) on the server.
+    // Just navigate to the meetup screen.
     navigate(`/meetup/${match.matchId}`);
   };
   const decline = (): void => {

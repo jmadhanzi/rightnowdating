@@ -16,7 +16,6 @@ const OTP_TTL_SECONDS = 600; // 10 minutes
 const OTP_RATE_MAX = 3; // max requests...
 const OTP_RATE_WINDOW = 600; // ...per 10 minutes per phone
 const REFRESH_TTL_SECONDS = 60 * 60 * 24 * 30; // 30 days
-const ACCESS_TOKEN_TTL = '30d';
 const DEMO_OTP = '123456';
 
 // --- Redis key helpers ------------------------------------------------------
@@ -54,7 +53,11 @@ function generateOtp(): string {
 
 function signAccessToken(userId: string, phone: string): string {
   const payload: JwtPayload = { userId, phone };
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_TTL });
+  // Cast is safe: env.JWT_ACCESS_EXPIRES_IN is validated as a string at startup
+  // and jsonwebtoken accepts any ms-compatible string at runtime.
+  return jwt.sign(payload, env.JWT_SECRET, {
+    expiresIn: env.JWT_ACCESS_EXPIRES_IN as jwt.SignOptions['expiresIn'],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -70,12 +73,15 @@ export async function requestOtp(phone: string): Promise<RequestOtpResult> {
     throw badRequest('Invalid phone number. Use E.164 format, e.g. +13055551234.');
   }
 
-  // Sliding-window-ish rate limit: max OTP_RATE_MAX per OTP_RATE_WINDOW seconds.
+  // Atomic rate-limit using a pipeline: INCR + EXPIRE in a single round-trip.
+  // If the key doesn't exist yet, INCR creates it and EXPIRE sets the window;
+  // both commands are queued together so expire never silently fails.
   const rateKey = otpRateKey(phone);
-  const count = await redis.incr(rateKey);
-  if (count === 1) {
-    await redis.expire(rateKey, OTP_RATE_WINDOW);
-  }
+  const [[, count]] = (await redis
+    .pipeline()
+    .incr(rateKey)
+    .expire(rateKey, OTP_RATE_WINDOW)
+    .exec()) as [[null, number], [null, number]];
   if (count > OTP_RATE_MAX) {
     throw tooManyRequests('Too many OTP requests. Please try again later.');
   }

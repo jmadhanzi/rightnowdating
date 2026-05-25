@@ -54,6 +54,17 @@ export async function liveRoutes(app: FastifyInstance): Promise<void> {
     const { fuzzyLat, fuzzyLng } = applyFuzzyLocation(body.latitude, body.longitude);
     const expiresAt = new Date(Date.now() + body.windowMinutes * 60_000);
 
+    // Deactivate any pre-existing session to prevent duplicate live pins.
+    const existingSessionId = await redis.get(`user_session:${userId}`);
+    if (existingSessionId) {
+      await pool.query(
+        'UPDATE live_sessions SET is_active = false WHERE id = $1 AND is_active = true',
+        [existingSessionId],
+      );
+      await redis.srem(`live_sessions:${city}`, existingSessionId);
+      emitToCity(city, 'map:pin:removed', { sessionId: existingSessionId });
+    }
+
     const inserted = await pool.query<{ id: string }>(
       `INSERT INTO live_sessions
          (user_id, location, fuzzy_location, vibe, window_minutes, expires_at, is_active, radius_miles)
@@ -66,7 +77,7 @@ export async function liveRoutes(app: FastifyInstance): Promise<void> {
     );
     const sessionId = inserted.rows[0]!.id;
 
-    await redis.set(`user_session:${userId}`, sessionId);
+    await redis.set(`user_session:${userId}`, sessionId, 'EX', body.windowMinutes * 60);
     await redis.sadd(`live_sessions:${city}`, sessionId);
 
     const trustRes = await pool.query<{ score: number }>(

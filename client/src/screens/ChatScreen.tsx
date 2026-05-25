@@ -86,7 +86,16 @@ export default function ChatScreen(): React.JSX.Element {
     setActiveMatch(matchId);
     setLoading(true);
     getChatMessages(matchId)
-      .then((r) => setMessages(matchId, r.messages))
+      .then((r) => {
+        // Merge with any messages that arrived via socket while the fetch was in
+        // flight, so we never drop a message that landed during the API round-trip.
+        const existing = useChatStore.getState().conversations[matchId]?.messages ?? [];
+        const existingIds = new Set(r.messages.map((m) => m.id));
+        const socketOnly = existing.filter(
+          (m) => !m.id.startsWith('local-') && !existingIds.has(m.id),
+        );
+        setMessages(matchId, [...r.messages, ...socketOnly]);
+      })
       .catch(() => toast.error('Could not load messages'))
       .finally(() => setLoading(false));
     getMatch(matchId)
@@ -131,15 +140,33 @@ export default function ChatScreen(): React.JSX.Element {
   const send = (): void => {
     const content = draft.trim();
     if (!content || !matchId || !myId) return;
-    sendMessage(matchId, content);
-    addMessage(matchId, {
-      id: `local-${Date.now()}`,
+
+    // Create a stable local key so we can replace the optimistic message
+    // with the server-confirmed one (which has a real UUID) without duplication.
+    const localId = `local-${Date.now()}`;
+    const optimistic: StoredMessage = {
+      id: localId,
       matchId,
       senderId: myId,
       content,
       createdAt: new Date().toISOString(),
-    });
+    };
+    addMessage(matchId, optimistic);
+    sendMessage(matchId, content);
     setDraft('');
+
+    // Replace the optimistic entry when the server echoes the message back.
+    const socket = getSocket();
+    const replaceOptimistic = (msg: { id: string; matchId: string; senderId: string; content: string; createdAt: string }): void => {
+      if (msg.matchId !== matchId || msg.senderId !== myId || msg.content !== content) return;
+      // Remove the local placeholder and let the real message take its place.
+      useChatStore.getState().replaceMessage(matchId, localId, { ...msg });
+      socket.off('message:received', replaceOptimistic);
+    };
+    socket.on('message:received', replaceOptimistic);
+
+    // Safety net: remove the listener after 10 s regardless.
+    setTimeout(() => socket.off('message:received', replaceOptimistic), 10_000);
   };
 
   const statusText = match?.status === 'met' ? 'At venue' : 'En route';

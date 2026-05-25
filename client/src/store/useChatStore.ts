@@ -16,6 +16,8 @@ interface ChatState {
   setMessages: (matchId: string, messages: StoredMessage[]) => void;
   setActiveMatch: (matchId: string | null) => void;
   markRead: (matchId: string) => void;
+  /** Replace an optimistic placeholder (by localId) with the server-confirmed message. */
+  replaceMessage: (matchId: string, localId: string, confirmed: StoredMessage) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -58,5 +60,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       return {
         conversations: { ...state.conversations, [matchId]: { ...convo, unread: 0 } },
       };
+    }),
+
+  replaceMessage: (matchId, localId, confirmed) =>
+    set((state) => {
+      const convo = state.conversations[matchId];
+      if (!convo) return state;
+      const messages = convo.messages.map((m) => (m.id === localId ? confirmed : m));
+      // Guard: if the confirmed id already exists (rare race), just remove the placeholder.
+      const deduped = messages.filter(
+        (m, i) => m.id !== confirmed.id || messages.indexOf(m) === i,
+      );
+      return { conversations: { ...state.conversations, [matchId]: { ...convo, messages: deduped } } };
     }),
 }));

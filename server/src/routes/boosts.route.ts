@@ -37,9 +37,13 @@ async function activateBoost(params: {
   const boostEndsAt = new Date(Date.now() + BOOST_DURATION_MS);
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO boosts (user_id, session_id, stripe_payment_intent_id, boost_start, boost_end, is_active)
-     VALUES ($1, $2, $3, NOW(), $4, true) RETURNING id`,
+     VALUES ($1, $2, $3, NOW(), $4, true)
+     ON CONFLICT (stripe_payment_intent_id) DO NOTHING
+     RETURNING id`,
     [params.userId, params.sessionId, params.paymentIntentId ?? null, boostEndsAt],
   );
+  // If the row already existed (idempotent retry), skip re-emitting events.
+  if (rows.length === 0) return boostEndsAt;
   const boostId = rows[0]!.id;
 
   emitToUser(params.userId, 'boost:activated', {

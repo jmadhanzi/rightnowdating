@@ -11,7 +11,7 @@ import { useSubscriptionStore } from '@/store/useSubscriptionStore';
 import { createLive, getProfile } from '@/services/api';
 import { goOffline } from '@/services/socket';
 import { VIBES } from '@/utils/vibes';
-import { applyFuzzyLocation, neighborhoodCoords } from '@/utils/geo';
+import { neighborhoodCoords } from '@/utils/geo';
 import { formatMMSS } from '@/utils/time';
 
 type WindowMinutes = 30 | 60 | 120;
@@ -86,12 +86,14 @@ export default function GoLiveScreen(): React.JSX.Element {
     async (coords: { lat: number; lng: number }) => {
       setLoading(true);
       try {
-        const fuzz = applyFuzzyLocation(coords.lat, coords.lng);
+        // Send raw GPS — the server applies fuzzing server-side so the
+        // exact location is never stored. Applying applyFuzzyLocation here
+        // would double-fuzz (idempotent, but semantically wrong).
         const res = await createLive({
           vibe,
           windowMinutes,
-          latitude: fuzz.lat,
-          longitude: fuzz.lng,
+          latitude: coords.lat,
+          longitude: coords.lng,
         });
         setMySession({ sessionId: res.sessionId, vibe, expiresAt: res.expiresAt });
         bumpDailyCount();
