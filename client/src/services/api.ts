@@ -206,6 +206,11 @@ export interface UpdateProfilePayload {
   avatar_emoji?: string;
   bio?: string;
   vibe?: Vibe;
+  vibes?: Vibe[];
+  city?: string;
+  preferred_radius_miles?: number;
+  preferred_age_min?: number;
+  preferred_age_max?: number;
 }
 export async function updateProfile<T = unknown>(payload: UpdateProfilePayload): Promise<T> {
   const { data } = await api.patch<T>('/profile', payload);
@@ -259,5 +264,41 @@ export async function getMatch(matchId: string): Promise<MatchData> {
 }
 export async function getIcebreaker(matchId: string): Promise<{ icebreaker: string }> {
   const { data } = await api.get('/ai/icebreaker', { params: { matchId } });
+  return data;
+}
+
+// --- Chats ---
+export interface Conversation {
+  matchId: string;
+  status: string;
+  isActive: boolean;
+  meetupTime: string | null;
+  partner: { userId: string; displayName: string; emoji: string; trustScore: number };
+  lastMessage: { content: string; createdAt: string } | null;
+}
+export interface ChatMessage {
+  id: string;
+  matchId: string;
+  senderId: string;
+  content: string;
+  isFlagged: boolean;
+  createdAt: string;
+}
+export async function getChats(): Promise<{ conversations: Conversation[] }> {
+  const { data } = await api.get('/chats');
+  return data;
+}
+export async function getChatMessages(matchId: string): Promise<{ messages: ChatMessage[] }> {
+  const { data } = await api.get(`/chats/${matchId}/messages`);
+  return data;
+}
+
+// --- Paywall extras ---
+export async function getViewedCount(): Promise<{ count: number }> {
+  const { data } = await api.get('/sparks/viewed-count');
+  return data;
+}
+export async function restorePurchases(): Promise<{ plan: string; status: string }> {
+  const { data } = await api.get('/payments/restore');
   return data;
 }

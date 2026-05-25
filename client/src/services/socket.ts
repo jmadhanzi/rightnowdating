@@ -80,3 +80,6 @@ export function sendMessage(matchId: string, content: string): void {
 export function confirmCheckin(matchId: string): void {
   getSocket().emit('checkin:confirm', { matchId });
 }
+export function emitTyping(matchId: string): void {
+  getSocket().emit('typing:start', { matchId });
+}

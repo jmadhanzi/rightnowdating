@@ -433,6 +433,22 @@ async function handleCheckinConfirm(socket: RNSocket, payload: { matchId: string
   }
 }
 
+async function handleTyping(
+  io: RNServer,
+  socket: RNSocket,
+  payload: { matchId: string },
+): Promise<void> {
+  const me = socket.data.userId;
+  const { rows } = await pool.query<{ user1_id: string; user2_id: string }>(
+    'SELECT user1_id, user2_id FROM matches WHERE id = $1',
+    [payload.matchId],
+  );
+  const match = rows[0];
+  if (!match || (me !== match.user1_id && me !== match.user2_id)) return;
+  const other = me === match.user1_id ? match.user2_id : match.user1_id;
+  io.to(userRoom(other)).emit('typing:start', { matchId: payload.matchId, userId: me });
+}
+
 // ---------------------------------------------------------------------------
 // Spark expiry via Redis keyspace notifications
 // ---------------------------------------------------------------------------
@@ -555,6 +571,9 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
     );
     socket.on('checkin:confirm', (payload) =>
       guard(socket, 'checkin:confirm', () => handleCheckinConfirm(socket, payload)),
+    );
+    socket.on('typing:start', (payload) =>
+      guard(socket, 'typing:start', () => handleTyping(io, socket, payload)),
     );
 
     socket.on('disconnect', (reason) => {

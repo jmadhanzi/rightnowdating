@@ -14,6 +14,15 @@ interface ViewerRow {
 }
 
 export async function sparkRoutes(app: FastifyInstance): Promise<void> {
+  // Ungated count of recent sparks received (used by the paywall teaser).
+  app.get('/sparks/viewed-count', { preHandler: authenticateToken }, async (request, reply) => {
+    const { rows } = await pool.query<{ c: number }>(
+      "SELECT COUNT(*)::int AS c FROM sparks WHERE receiver_id = $1 AND created_at > NOW() - INTERVAL '1 day'",
+      [request.user.userId],
+    );
+    return reply.send({ count: rows[0]?.c ?? 0 });
+  });
+
   // Who sparked you — RIGHTNOW+ feature.
   app.get(
     '/sparks/who-viewed',

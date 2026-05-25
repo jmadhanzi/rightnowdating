@@ -204,6 +204,7 @@ export interface ServerToClientEvents {
   'boost:activated': (payload: { sessionId: string; boostEndsAt: string }) => void;
   'reward:granted': (payload: { tier: number; reward: string }) => void;
   notification: (payload: { title: string; body: string }) => void;
+  'typing:start': (payload: { matchId: string; userId: string }) => void;
   'app:error': (payload: { event: string; message: string }) => void;
 }
 
@@ -215,4 +216,5 @@ export interface ClientToServerEvents {
   'spark:decline': (payload: { sparkId: string }) => void;
   'message:send': (payload: { matchId: string; content: string }) => void;
   'checkin:confirm': (payload: { matchId: string }) => void;
+  'typing:start': (payload: { matchId: string }) => void;
 }

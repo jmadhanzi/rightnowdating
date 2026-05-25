@@ -136,6 +136,20 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ success: true, boostEndsAt: boostEndsAt.toISOString() });
   });
 
+  // Restore purchases — resolve and re-cache the user's current plan.
+  app.get('/payments/restore', { preHandler: authenticateToken }, async (request, reply) => {
+    const { userId } = request.user;
+    const { rows } = await pool.query<{ plan: string; status: string }>(
+      `SELECT plan, status FROM subscriptions
+        WHERE user_id = $1 AND status IN ('active', 'trialing', 'cancelling')
+        ORDER BY current_period_end DESC NULLS LAST LIMIT 1`,
+      [userId],
+    );
+    const plan = (rows[0]?.plan as Plan) ?? 'free';
+    await setUserPlan(userId, plan);
+    return reply.send({ plan, status: rows[0]?.status ?? 'none' });
+  });
+
   // Cancel at period end.
   app.post('/payments/cancel', { preHandler: authenticateToken }, async (request, reply) => {
     const { userId } = request.user;
