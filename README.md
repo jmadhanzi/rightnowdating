@@ -169,6 +169,30 @@ rate limited via a Redis-backed store.
 - Protect routes with `authenticateToken` (rejects) or `optionalAuth`
   (`server/src/middleware/auth.ts`); both populate `request.user`.
 
+## Real-time engine
+
+Socket.io (`server/src/socket/index.ts`) authenticates the handshake with the
+same JWT as the REST API (`io({ auth: { token } })`), joins each user to a
+`user:{id}` and `city:{city}` room, and tracks `socket:{id}→userId` in Redis.
+
+| Client → server                               | Server → client                                    |
+| --------------------------------------------- | -------------------------------------------------- |
+| `go:live`, `go:offline`                       | `map:pin:added`, `map:pin:removed`                 |
+| `spark:send`, `spark:accept`, `spark:decline` | `spark:received`, `spark:expired`, `match:created` |
+| `message:send`                                | `message:received`, `message:flagged`              |
+| `checkin:confirm`                             | `date:checkin:ping`, `session:expiring`            |
+
+- **Privacy:** exact GPS is never stored — `applyFuzzyLocation` snaps to a
+  ~200 m grid (`services/location.service.ts`) and only the fuzzy point is
+  persisted and broadcast. Proximity uses PostGIS `ST_DWithin`.
+- **Venues:** on a mutual spark, `services/venues.service.ts` picks meetup spots
+  near the midpoint, scored 40% proximity / 40% safe-zone / 20% rating, falling
+  back to Google Places when the local catalogue is thin.
+- **Sparks** expire after 7 minutes via a Redis TTL key (`spark_expiry:{id}`) +
+  keyspace notifications, which mark the spark expired and notify both users.
+- **Safety:** chat runs an async OpenAI moderation check (never blocking
+  delivery); a check-in ping fires 30 min after the meetup time.
+
 ## Testing
 
 The server suite (Jest + Supertest) covers the full auth flow — request/verify,

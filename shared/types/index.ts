@@ -15,7 +15,7 @@ export interface LngLat {
 // Domain enums
 // -----------------------------------------------------------------------------
 /** The "vibe" a user broadcasts when going live. */
-export type Vibe = 'coffee' | 'drinks' | 'walk' | 'food' | 'late';
+export type Vibe = 'coffee' | 'drinks' | 'walk' | 'food' | 'explore' | 'late' | 'spicy';
 
 /** How long a live session stays active. */
 export type TimeWindow = '30m' | '1h' | '2h';
@@ -124,18 +124,85 @@ export interface HealthResponse {
 }
 
 // -----------------------------------------------------------------------------
+// Real-time payloads
+// -----------------------------------------------------------------------------
+export interface GoLivePayload {
+  vibe: Vibe;
+  windowMinutes: number;
+  latitude: number;
+  longitude: number;
+  radiusMiles: number;
+}
+
+/** A live map pin (fuzzy location only — never exact GPS). */
+export interface MapPinPayload {
+  sessionId: string;
+  fuzzyLat: number;
+  fuzzyLng: number;
+  vibe: Vibe;
+  trustScore: number;
+}
+
+export interface SparkSenderPreview {
+  userId: string;
+  displayName: string;
+  age: number | null;
+  emoji: string;
+  trustScore: number;
+}
+
+export interface SparkReceivedPayload {
+  sparkId: string;
+  sender: SparkSenderPreview;
+  expiresAt: string;
+}
+
+export interface VenueSuggestion {
+  id: string | null;
+  name: string;
+  address: string;
+  distanceMeters: number;
+  directionsUrl: string;
+  isSafeZone: boolean;
+}
+
+export interface MatchCreatedPayload {
+  matchId: string;
+  venue: VenueSuggestion | null;
+  meetupTime: string;
+  countdown: number; // seconds until meetup
+}
+
+export interface MessageReceivedPayload {
+  id: string;
+  matchId: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+}
+
+// -----------------------------------------------------------------------------
 // Socket.io event contracts
 // -----------------------------------------------------------------------------
 export interface ServerToClientEvents {
-  'presence:update': (pins: MapPin[]) => void;
-  'match:spark': (match: Match) => void;
-  'match:confirmed': (match: Match) => void;
-  'chat:message': (message: ChatMessage) => void;
-  'session:expired': (sessionId: string) => void;
+  'map:pin:added': (pin: MapPinPayload) => void;
+  'map:pin:removed': (payload: { sessionId: string }) => void;
+  'spark:received': (payload: SparkReceivedPayload) => void;
+  'spark:expired': (payload: { sparkId: string }) => void;
+  'match:created': (payload: MatchCreatedPayload) => void;
+  'message:received': (payload: MessageReceivedPayload) => void;
+  'message:flagged': (payload: { messageId: string; reason: string }) => void;
+  'date:checkin:ping': (payload: { matchId: string }) => void;
+  'session:expiring': (payload: { sessionId: string; expiresAt: string }) => void;
+  'app:error': (payload: { event: string; message: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  'presence:subscribe': (bounds: { ne: LngLat; sw: LngLat }) => void;
-  'match:spark': (payload: { targetUserId: string }) => void;
-  'chat:message': (payload: { matchId: string; body: string }) => void;
+  'go:live': (payload: GoLivePayload) => void;
+  'go:offline': () => void;
+  'spark:send': (payload: { targetSessionId: string }) => void;
+  'spark:accept': (payload: { sparkId: string }) => void;
+  'spark:decline': (payload: { sparkId: string }) => void;
+  'message:send': (payload: { matchId: string; content: string }) => void;
+  'checkin:confirm': (payload: { matchId: string }) => void;
 }
