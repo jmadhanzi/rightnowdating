@@ -5,8 +5,9 @@ import { logger } from '../utils/logger.js';
 const { Pool } = pg;
 
 /**
- * Shared PostgreSQL connection pool. PostGIS is expected to be enabled on the
- * target database (see db/init.sql).
+ * Shared PostgreSQL connection pool (max 20 connections by default; configurable
+ * via POSTGRES_POOL_MAX). PostGIS is expected to be enabled on the target
+ * database (see migrations/001_enable_extensions.sql).
  */
 export const pool = new Pool({
   connectionString: env.DATABASE_URL,
@@ -18,10 +19,13 @@ pool.on('error', (err) => {
   logger.error({ err }, 'Unexpected error on idle Postgres client');
 });
 
-/** Thin typed query helper. */
+/**
+ * Run a parameterized query against the pool. Always pass user-supplied values
+ * via `params` ($1, $2, ...) — never interpolate them into `text`.
+ */
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
-  params?: unknown[],
+  params: unknown[] = [],
 ): Promise<pg.QueryResult<T>> {
   const start = Date.now();
   const res = await pool.query<T>(text, params as never[]);
@@ -29,7 +33,37 @@ export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   return res;
 }
 
-/** Verify connectivity and that PostGIS is installed. */
+/**
+ * Run `fn` inside a single transaction. Commits on success, rolls back on any
+ * thrown error, and always releases the client back to the pool.
+ */
+export async function transaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+/** Lightweight liveness check used by the /health endpoint and probes. */
+export async function healthCheck(): Promise<boolean> {
+  try {
+    await pool.query('SELECT 1');
+    return true;
+  } catch (err) {
+    logger.error({ err }, 'Database health check failed');
+    return false;
+  }
+}
+
+/** Verify connectivity and that PostGIS is installed (run at boot). */
 export async function verifyDatabase(): Promise<void> {
   const { rows } = await pool.query<{ postgis_version: string }>(
     'SELECT postgis_version() AS postgis_version',

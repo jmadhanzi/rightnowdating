@@ -18,7 +18,7 @@ const envSchema = z.object({
 
   // Postgres
   DATABASE_URL: z.string().min(1),
-  POSTGRES_POOL_MAX: z.coerce.number().int().positive().default(10),
+  POSTGRES_POOL_MAX: z.coerce.number().int().positive().default(20),
   POSTGRES_SSL: booleanish.default('false'),
 
   // Redis

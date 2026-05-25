@@ -18,6 +18,8 @@
     "dev:client": "npm run dev --workspace client",
     "build": "npm run build --workspace shared && npm run build --workspace server && npm run build --workspace client",
     "start": "npm run start --workspace server",
+    "db:migrate": "npm run db:migrate --workspace server",
+    "db:seed": "npm run db:seed --workspace server",
     "lint": "npm run lint --workspaces --if-present",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",

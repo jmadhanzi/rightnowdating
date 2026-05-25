@@ -29,7 +29,7 @@ rightnow/
 │   │   ├── controllers/    # Request handlers
 │   │   ├── middleware/     # Auth, error handling
 │   │   ├── services/       # Twilio, Stripe, OpenAI, Cloudinary, Places
-│   │   ├── db/             # Postgres pool, Redis, init.sql
+│   │   ├── db/             # Pool, Redis, migrations/, migrate.ts, seed.ts
 │   │   ├── socket/         # Socket.io server
 │   │   ├── utils/          # env (Zod), logger
 │   │   └── server.ts       # Entry point (Fastify on :3000)
@@ -101,10 +101,21 @@ VITE_MAPBOX_TOKEN=pk.your-mapbox-public-token
 docker compose up -d
 ```
 
-PostGIS and the initial schema (`server/src/db/init.sql`) are applied
-automatically on first boot.
+### 4. Run migrations + seed data
 
-### 4. Run the app (server + client together)
+The schema is managed by numbered SQL migrations in
+`server/src/db/migrations/`. Apply them, then load development seed data
+(Miami safe-zone venues + test users):
+
+```bash
+npm run db:migrate --workspace server
+npm run db:seed --workspace server
+```
+
+The migration runner tracks applied files in a `schema_migrations` table, so
+it is safe to re-run — only pending migrations execute.
+
+### 5. Run the app (server + client together)
 
 ```bash
 npm run dev
@@ -119,14 +130,16 @@ Run them individually with `npm run dev:server` / `npm run dev:client`.
 
 ## Scripts (root)
 
-| Command             | Description                      |
-| ------------------- | -------------------------------- |
-| `npm run dev`       | Run server + client concurrently |
-| `npm run build`     | Build shared → server → client   |
-| `npm run start`     | Start the compiled server        |
-| `npm run lint`      | Lint all workspaces (ESLint)     |
-| `npm run format`    | Format with Prettier             |
-| `npm run typecheck` | Type-check all workspaces        |
+| Command              | Description                      |
+| -------------------- | -------------------------------- |
+| `npm run dev`        | Run server + client concurrently |
+| `npm run build`      | Build shared → server → client   |
+| `npm run start`      | Start the compiled server        |
+| `npm run db:migrate` | Apply pending SQL migrations     |
+| `npm run db:seed`    | Load development seed data       |
+| `npm run lint`       | Lint all workspaces (ESLint)     |
+| `npm run format`     | Format with Prettier             |
+| `npm run typecheck`  | Type-check all workspaces        |
 
 ---
 
@@ -146,8 +159,9 @@ glows over shadows. See the design reference for full guidance.
 
 ## Tech notes
 
-- **Geo:** live sessions use a PostGIS `GEOGRAPHY(POINT)` column with a GiST index
-  for metre-accurate "who's live near me" queries.
+- **Geo:** live sessions and venues use PostGIS `GEOMETRY(POINT, 4326)` columns
+  with GiST indexes; proximity ("who's live near me") uses `ST_DWithin` /
+  `ST_Distance` cast to `geography` for metre-accurate results.
 - **Real-time:** Socket.io is attached to Fastify's HTTP server; Redis backs
   presence and (future) horizontal scaling via the Socket.io adapter.
 - **Validation:** all environment variables are validated with Zod at boot

@@ -11,8 +11,7 @@ services:
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # Enables PostGIS + initial schema on first boot
-      - ./server/src/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      # Schema is managed by the migration runner: `npm run db:migrate`.
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-rightnow} -d ${POSTGRES_DB:-rightnow}']
       interval: 10s
