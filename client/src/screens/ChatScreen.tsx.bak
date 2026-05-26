@@ -5,7 +5,7 @@ import ChatSkeleton from '@/components/skeletons/ChatSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useChatStore, type StoredMessage } from '@/store/useChatStore';
-import { getChatMessages, getMatch, getThreeIcebreakers, type MatchData } from '@/services/api';
+import { getChatMessages, getMatch, type MatchData } from '@/services/api';
 import { emitTyping, getSocket, sendMessage } from '@/services/socket';
 
 const TYPING_THROTTLE_MS = 3000;
@@ -73,8 +73,6 @@ export default function ChatScreen(): React.JSX.Element {
   const [theyTyping, setTheyTyping] = useState(false);
   const [showTime, setShowTime] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [icebreakers, setIcebreakers] = useState<string[]>([]);
-  const [icebreakersDismissed, setIcebreakersDismissed] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const lastTypingRef = useRef(0);
@@ -103,12 +101,6 @@ export default function ChatScreen(): React.JSX.Element {
     getMatch(matchId)
       .then(setMatch)
       .catch(() => undefined);
-
-    // Fetch 3 icebreakers for empty chats
-    getThreeIcebreakers(matchId)
-      .then((r) => setIcebreakers(r.icebreakers))
-      .catch(() => undefined);
-
     return () => setActiveMatch(null);
   }, [matchId, setActiveMatch, setMessages, toast]);
 
@@ -218,49 +210,7 @@ export default function ChatScreen(): React.JSX.Element {
           />
         ))}
 
-      {/* Icebreaker bubbles (show when chat is empty) */}
-      {!loading && messages.length === 0 && icebreakers.length > 0 && !icebreakersDismissed && (
-        <div className="mb-4 px-4">
-          <div className="mb-2 flex items-center gap-2">
-            <span className="text-lg">✨</span>
-            <p className="text-xs font-semibold" style={{ color: 'var(--gold)' }}>
-              AI-powered icebreakers
-            </p>
-            <button
-              type="button"
-              onClick={() => setIcebreakersDismissed(true)}
-              className="ml-auto text-xs"
-              style={{ color: 'var(--mt)' }}
-            >
-              dismiss
-            </button>
-          </div>
-          <div className="space-y-2">
-            {icebreakers.map((text, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => {
-                  setDraft(text);
-                  setIcebreakersDismissed(true);
-                }}
-                className="anim-fup w-full rounded-2xl px-4 py-3 text-left text-sm active:scale-95"
-                style={{
-                  background: 'var(--s2)',
-                  border: '1px solid var(--s4)',
-                  color: 'var(--tx)',
-                  animationDelay: `${i * 0.1}s`,
-                }}
-              >
-                <span style={{ color: 'var(--hot)' }}>💬</span>{' '}
-                {text}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {theyTyping && (
+        {theyTyping && (
           <div className="flex justify-start">
             <div className="flex gap-1 rounded-2xl px-3 py-3" style={{ background: 'var(--s2)' }}>
               {[0, 0.2, 0.4].map((d) => (

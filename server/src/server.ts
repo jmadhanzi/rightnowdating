@@ -3,7 +3,7 @@ import { buildApp } from './app.js';
 import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
-import { closeQueues, scheduleMonthlyCredits } from './services/queue.service.js';
+import { closeQueues, scheduleMonthlyCredits, scheduleIdleNudges } from './services/queue.service.js';
 import { ensureStripeCatalog } from './services/stripe.service.js';
 import { startDemandCron, stopDemandCron } from './services/demandPrediction.service.js';
 import { setupWebPush } from './services/notifications.service.js';
@@ -29,6 +29,9 @@ async function start(): Promise<void> {
     startDemandCron();
     await scheduleMonthlyCredits().catch((err) =>
       app.log.warn({ err }, 'failed to schedule monthly credits'),
+    );
+    await scheduleIdleNudges().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule idle match nudges'),
     );
   } catch (err) {
     app.log.error({ err }, 'Failed to start server');

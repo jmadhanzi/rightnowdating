@@ -277,6 +277,11 @@ export async function getIcebreaker(matchId: string): Promise<{ icebreaker: stri
   const { data } = await api.get('/ai/icebreaker', { params: { matchId } });
   return data;
 }
+
+export async function getThreeIcebreakers(matchId: string): Promise<{ icebreakers: string[] }> {
+  const { data } = await api.get('/ai/icebreakers/three', { params: { matchId } });
+  return data;
+}
 export async function scoreBio(bio: string): Promise<{ score: number; suggestion: string }> {
   const { data } = await api.post('/ai/profile-score', { bio });
   return data;
@@ -316,4 +321,61 @@ export async function getViewedCount(): Promise<{ count: number }> {
 export async function restorePurchases(): Promise<{ plan: string; status: string }> {
   const { data } = await api.get('/payments/restore');
   return data;
+}
+
+// --- Wingman Vouching ---
+export interface WingmanVouch {
+  id: string;
+  voucherName: string;
+  tags: string[];
+  endorsement: string | null;
+  createdAt: string;
+}
+
+export interface WingmanLinkResponse {
+  link: string;
+  token: string;
+  profile: { displayName: string; avatarEmoji: string; city: string };
+}
+
+export interface WingmanPreview {
+  userId: string;
+  displayName: string;
+  avatarEmoji: string;
+  city: string;
+  existingVouchCount: number;
+}
+
+export async function getWingmanLink(): Promise<WingmanLinkResponse> {
+  const { data } = await api.get('/wingman/link');
+  return data;
+}
+
+export async function getWingmanPreview(token: string): Promise<WingmanPreview> {
+  const { data } = await api.get(`/wingman/preview/${token}`);
+  return data;
+}
+
+export async function getWingmanTags(): Promise<{ tags: string[] }> {
+  const { data } = await api.get('/wingman/tags');
+  return data;
+}
+
+export async function submitWingmanVouch(payload: {
+  token: string;
+  voucherName: string;
+  tags: string[];
+  endorsement?: string;
+}): Promise<{ id: string }> {
+  const { data } = await api.post('/wingman/vouch', payload);
+  return data;
+}
+
+export async function getMyVouches(): Promise<{ vouches: WingmanVouch[] }> {
+  const { data } = await api.get('/wingman/vouches');
+  return data;
+}
+
+export async function deleteMyVouch(vouchId: string): Promise<void> {
+  await api.delete(`/wingman/vouches/${vouchId}`);
 }

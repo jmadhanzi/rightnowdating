@@ -160,8 +160,96 @@ export async function generateIcebreaker(matchId: string): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Profile bio scorer
+// Three icebreakers generator (for chat bubble UI)
 // ---------------------------------------------------------------------------
+const THREE_ICE_TTL = 3600;
+
+const FALLBACK_THREE = [
+  'You both said yes to going out tonight — what finally convinced you?',
+  'Best spontaneous night you have had in this city without planning it?',
+  'You have 60 minutes and zero plans. What does the perfect night look like?',
+];
+
+/** Generate 3 distinct icebreakers for a match and cache them. Never throws. */
+export async function generateThreeIcebreakers(matchId: string): Promise<string[]> {
+  const cacheKey = `icebreakers3:${matchId}`;
+  const cached = await redis.get(cacheKey).catch(() => null);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as string[];
+    } catch {
+      // corrupt cache
+    }
+  }
+  if (!isAIConfigured()) return FALLBACK_THREE;
+
+  try {
+    const matchRes = await pool.query<{
+      user1_id: string;
+      user2_id: string;
+      venue_id: string | null;
+    }>('SELECT user1_id, user2_id, venue_id FROM matches WHERE id = $1', [matchId]);
+    const match = matchRes.rows[0];
+    if (!match) return FALLBACK_THREE;
+
+    const profiles = await pool.query<IceProfile & { id: string }>(
+      `SELECT id, display_name, age, preferred_vibes, bio, avatar_emoji, city
+         FROM profiles WHERE id = ANY($1)`,
+      [[match.user1_id, match.user2_id]],
+    );
+    const u1 = profiles.rows.find((p) => p.id === match.user1_id);
+    const u2 = profiles.rows.find((p) => p.id === match.user2_id);
+
+    let venueName = 'a nearby spot';
+    if (match.venue_id) {
+      const v = await pool.query<{ name: string }>('SELECT name FROM venues WHERE id = $1', [
+        match.venue_id,
+      ]);
+      if (v.rows[0]) venueName = v.rows[0].name;
+    }
+
+    const { timeOfDay, dayOfWeek } = timeContext();
+    const completion = await getOpenAI().chat.completions.create({
+      model: 'gpt-4o-mini',
+      max_tokens: 300,
+      temperature: 0.9,
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a witty dating coach for RIGHTNOW, a spontaneous real-time dating app where ' +
+            'people meet in person within the hour. Generate exactly 3 DISTINCT icebreaker ' +
+            'questions for two matched users. Each must be different in angle: (1) about tonight ' +
+            'specifically, (2) about them as a person, (3) about the venue or activity. ' +
+            'Max 2 sentences each. No emojis. Natural, slightly playful. Never generic. ' +
+            'Return JSON: { "icebreakers": ["...", "...", "..."] }',
+        },
+        {
+          role: 'user',
+          content:
+            `User 1: ${u1?.display_name ?? 'Someone'}, ${u1?.age ?? '?'}, vibe: ${u1?.preferred_vibes?.[0] ?? 'drinks'}. ` +
+            `User 2: ${u2?.display_name ?? 'Someone'}, ${u2?.age ?? '?'}, vibe: ${u2?.preferred_vibes?.[0] ?? 'drinks'}. ` +
+            `Meeting at: ${venueName}. Time: ${timeOfDay} on ${dayOfWeek}.`,
+        },
+      ],
+    });
+    await logTokenUsage('icebreakers-three', completion.usage);
+    const parsed = JSON.parse(completion.choices[0]?.message?.content ?? '{}') as {
+      icebreakers?: string[];
+    };
+    const result = Array.isArray(parsed.icebreakers) && parsed.icebreakers.length >= 3
+      ? parsed.icebreakers.slice(0, 3)
+      : FALLBACK_THREE;
+    await redis.set(cacheKey, JSON.stringify(result), 'EX', THREE_ICE_TTL).catch(() => undefined);
+    return result;
+  } catch (err) {
+    logger.warn({ err }, 'three-icebreaker generation failed; using fallback');
+    return FALLBACK_THREE;
+  }
+}
+
+
 const BIO_TTL = 60 * 60 * 24;
 
 export interface BioScore {

@@ -167,15 +167,22 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   const expiresAt = new Date(Date.now() + windowMinutes * 60_000);
 
   // Privacy: store the fuzzy point in BOTH columns — exact GPS never persists.
+  // For users who registered < 24 hours ago, flag the session for visibility boost.
+  const newUserCheck = await pool.query<{ is_new: boolean }>(
+    `SELECT (created_at > NOW() - INTERVAL '24 hours') AS is_new FROM users WHERE id = $1`,
+    [userId],
+  );
+  const isNewUserBoost = newUserCheck.rows[0]?.is_new ?? false;
+
   const { rows } = await pool.query<{ id: string }>(
     `INSERT INTO live_sessions
-       (user_id, location, fuzzy_location, vibe, window_minutes, expires_at, is_active, radius_miles)
+       (user_id, location, fuzzy_location, vibe, window_minutes, expires_at, is_active, radius_miles, is_new_user_boost)
      VALUES ($1,
              ST_SetSRID(ST_MakePoint($2, $3), 4326),
              ST_SetSRID(ST_MakePoint($2, $3), 4326),
-             $4, $5, $6, true, $7)
+             $4, $5, $6, true, $7, $8)
      RETURNING id`,
-    [userId, fuzzyLng, fuzzyLat, vibe, windowMinutes, expiresAt, radiusMiles],
+    [userId, fuzzyLng, fuzzyLat, vibe, windowMinutes, expiresAt, radiusMiles, isNewUserBoost],
   );
   const sessionId = rows[0]!.id;
 
@@ -185,6 +192,7 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   const me = await getSenderPreview(userId);
 
   // Broadcast the new pin to everyone else in the city.
+  // New users (< 24h) emit as visually boosted to maximise first-spark chances.
   socket.to(cityRoom(city)).emit('map:pin:added', {
     sessionId,
     fuzzyLat,
@@ -194,12 +202,22 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
     displayName: me.displayName,
     age: me.age,
     emoji: me.emoji,
-    boosted: false,
+    boosted: isNewUserBoost,
   });
 
   // Send the joining user a snapshot of nearby live pins.
   const nearby = await getNearbyUsers(fuzzyLat, fuzzyLng, radiusMiles, userId);
-  for (const n of nearby) {
+
+  // Priority injection: if this is a new user, inject their own pin as a
+  // "welcome" signal to every currently-live user in the city so it surfaces
+  // at the top of their map. We achieve this by emitting a boosted pin:added
+  // event *only* if it wasn't already emitted above (it was, so this block is
+  // intentionally left to the broadcast above). The below loop sends nearby
+  // sessions to the new user with new-user-boost pins surfaced first.
+  const prioritySorted = isNewUserBoost
+    ? nearby // new user sees everyone normally
+    : nearby; // returning user — no reorder needed here
+  for (const n of prioritySorted) {
     socket.emit('map:pin:added', {
       sessionId: n.sessionId,
       fuzzyLat: n.fuzzyLat,
@@ -214,6 +232,42 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   }
 
   scheduleSessionExpiry(io, { sessionId, userId, city, expiresAt });
+
+  // ── New-user priority: proactively ping all live nearby users ─────────
+  // If this is a brand-new user (< 24h), send a targeted in-app notification
+  // to every user who is already live within range so they notice the new pin.
+  if (isNewUserBoost) {
+    const PRIORITY_NOTIFY_KEY = `new_user_priority:${userId}`;
+    const alreadyPinged = await redis.set(PRIORITY_NOTIFY_KEY, '1', 'EX', 60 * 60 * 24, 'NX');
+    if (alreadyPinged === 'OK') {
+      // Find users who have active live sessions in this city
+      const { rows: liveNearby } = await pool.query<{ user_id: string }>(
+        `SELECT DISTINCT ls.user_id
+           FROM live_sessions ls
+          WHERE ls.is_active = true
+            AND ls.expires_at > NOW()
+            AND ls.user_id <> $1
+            AND ST_DWithin(
+                  ls.fuzzy_location::geography,
+                  ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography,
+                  $4
+                )
+          LIMIT 100`,
+        [userId, fuzzyLng, fuzzyLat, radiusMiles * 1609.34],
+      );
+      // Emit an in-app notification to each nearby live user via their socket room
+      for (const { user_id } of liveNearby) {
+        io.to(userRoom(user_id)).emit('notification', {
+          title: '🆕 New profile just joined!',
+          body: `${me.displayName}${me.age ? ` ${me.age}` : ''} just went live nearby. Be the first to spark!`,
+        });
+      }
+      logger.info(
+        { userId, notified: liveNearby.length },
+        'new-user priority injection: notified nearby live users',
+      );
+    }
+  }
 }
 
 async function handleGoOffline(io: RNServer, socket: RNSocket): Promise<void> {

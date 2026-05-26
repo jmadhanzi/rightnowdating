@@ -9,7 +9,7 @@ import { requestOtp as apiRequestOtp, updateProfile } from '@/services/api';
 import { requestAndSubscribe } from '@/services/pushNotifications';
 import { VIBES } from '@/utils/vibes';
 
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 5;
 const TARGET_COUNT = 47;
 const ONBOARD_VIBES: Vibe[] = ['coffee', 'drinks', 'walk', 'food', 'explore', 'late'];
 
@@ -129,9 +129,9 @@ export default function OnboardingScreen(): React.JSX.Element {
     return () => clearInterval(id);
   }, [resendIn]);
 
-  // Step 6: fluctuating "live now" + one-time profile save.
+  // Step 5: fluctuating "live now" + one-time profile save.
   useEffect(() => {
-    if (step !== 6) return;
+    if (step !== 5) return;
     // Only save when displayName was filled in — returning users skip step 3
     // and land here with an empty displayName, so we must not overwrite their
     // existing profile with blank values.
@@ -238,9 +238,6 @@ export default function OnboardingScreen(): React.JSX.Element {
     advance(5);
   };
 
-  // After notifications step, go to personalization loader (step 5 -> step 6 is the success screen)
-  // Loader auto-advances after its animation completes
-
   return (
     <div
       className="relative min-h-screen overflow-hidden"
@@ -293,163 +290,14 @@ export default function OnboardingScreen(): React.JSX.Element {
         {step === 4 && (
           <Step4 loading={loading} onEnable={enableNotifications} onSkip={() => advance(5)} />
         )}
-        {step === 5 && <PersonalizationLoader onDone={() => advance(6)} />}
-        {step === 6 && <Step5 liveNow={liveNow} onGoLive={() => navigate('/live')} />}
+        {step === 5 && <Step5 liveNow={liveNow} onGoLive={() => navigate('/live')} />}
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Personalization Loader — premium "algorithm sorting" screen
-// ---------------------------------------------------------------------------
-const LOADER_PHASES = [
-  { icon: '📍', label: 'Scanning active singles nearby…', color: 'var(--hot)' },
-  { icon: '💫', label: 'Matching your vibe & energy…', color: 'var(--gold)' },
-  { icon: '🔥', label: 'Ranking tonight\'s top picks for you…', color: 'var(--hot)' },
-  { icon: '✅', label: 'Your personalized feed is ready!', color: 'var(--green)' },
-];
-
-function PersonalizationLoader({ onDone }: { onDone: () => void }): React.JSX.Element {
-  const [phaseIdx, setPhaseIdx] = useState(0);
-  const [barWidth, setBarWidth] = useState(0);
-  const [profilesScanned, setProfilesScanned] = useState(0);
-
-  // Auto-advance phases then call onDone
-  useEffect(() => {
-    const PHASE_DURATION = 900; // ms per phase
-    const TARGET_PROFILES = 284;
-
-    // Animate profile counter fast
-    const profileInterval = setInterval(() => {
-      setProfilesScanned((n) => {
-        const next = n + Math.floor(Math.random() * 18 + 8);
-        return next >= TARGET_PROFILES ? TARGET_PROFILES : next;
-      });
-    }, 60);
-
-    // Progress bar
-    const barInterval = setInterval(() => {
-      setBarWidth((w) => Math.min(w + 1.2, 100));
-    }, PHASE_DURATION / 83);
-
-    // Phase cycling
-    const phaseTimers: ReturnType<typeof setTimeout>[] = [];
-    LOADER_PHASES.forEach((_, i) => {
-      if (i === 0) return;
-      phaseTimers.push(
-        setTimeout(() => setPhaseIdx(i), i * PHASE_DURATION),
-      );
-    });
-
-    // Complete and advance
-    const doneTimer = setTimeout(() => {
-      clearInterval(profileInterval);
-      clearInterval(barInterval);
-      onDone();
-    }, LOADER_PHASES.length * PHASE_DURATION + 400);
-
-    return () => {
-      clearInterval(profileInterval);
-      clearInterval(barInterval);
-      phaseTimers.forEach(clearTimeout);
-      clearTimeout(doneTimer);
-    };
-  }, [onDone]);
-
-  const phase = LOADER_PHASES[phaseIdx]!;
-
-  return (
-    <div
-      className="relative flex min-h-screen flex-col items-center justify-center px-8 text-center"
-      style={{
-        background: 'radial-gradient(circle at 50% 40%, rgba(255,92,0,0.18), transparent 65%), var(--s0)',
-      }}
-    >
-      {/* Animated rings */}
-      <div className="relative flex h-40 w-40 items-center justify-center">
-        <span
-          className="anim-pring absolute rounded-full"
-          style={{ width: 140, height: 140, background: 'rgba(255,92,0,0.15)', animationDuration: '2s' }}
-        />
-        <span
-          className="anim-pring absolute rounded-full"
-          style={{ width: 140, height: 140, background: 'rgba(255,92,0,0.1)', animationDuration: '2s', animationDelay: '0.7s' }}
-        />
-        <span
-          className="anim-pring absolute rounded-full"
-          style={{ width: 140, height: 140, background: 'rgba(255,92,0,0.07)', animationDuration: '2s', animationDelay: '1.4s' }}
-        />
-        {/* Center icon */}
-        <span
-          className="relative flex items-center justify-center rounded-full"
-          style={{
-            width: 90, height: 90,
-            background: 'linear-gradient(135deg, var(--hot), #ff8c00)',
-            boxShadow: '0 0 60px var(--glow)',
-            fontSize: 38,
-          }}
-        >
-          ⚡
-        </span>
-      </div>
-
-      <h1
-        className="mt-8 font-display italic"
-        style={{ fontSize: 32, fontWeight: 800, lineHeight: 1.1 }}
-      >
-        Building your
-        <br />
-        <span style={{ color: 'var(--hot)' }}>perfect matches</span>
-      </h1>
-
-      {/* Profile counter */}
-      <div
-        className="mt-6 rounded-2xl px-6 py-3"
-        style={{ background: 'var(--s2)', border: '1px solid var(--s4)' }}
-      >
-        <span className="font-display text-3xl font-extrabold" style={{ color: 'var(--hot)' }}>
-          {profilesScanned}
-        </span>
-        <p className="mt-0.5 text-xs" style={{ color: 'var(--dm)' }}>
-          local singles analyzed
-        </p>
-      </div>
-
-      {/* Progress bar */}
-      <div
-        className="mt-6 w-full max-w-xs overflow-hidden rounded-full"
-        style={{ height: 6, background: 'var(--s3)' }}
-      >
-        <div
-          className="h-full rounded-full transition-all duration-200"
-          style={{
-            width: `${barWidth}%`,
-            background: 'linear-gradient(90deg, var(--hot), #ff8c00, var(--gold))',
-          }}
-        />
-      </div>
-
-      {/* Phase label */}
-      <div className="mt-5 flex min-h-[28px] items-center gap-2">
-        <span className="text-xl">{phase.icon}</span>
-        <p
-          className="anim-fup text-sm font-semibold"
-          key={phaseIdx}
-          style={{ color: phase.color }}
-        >
-          {phase.label}
-        </p>
-      </div>
-
-      <p className="mt-8 text-xs" style={{ color: 'var(--mt)' }}>
-        Powered by RIGHTNOW's real-time matching engine
-      </p>
-    </div>
-  );
-}
-
-
+function ProgressDots({ step }: { step: number }): React.JSX.Element {
   return (
     <div className="absolute left-0 right-0 top-5 z-30 flex items-center justify-center gap-2">
       {Array.from({ length: TOTAL_STEPS }, (_, i) => {

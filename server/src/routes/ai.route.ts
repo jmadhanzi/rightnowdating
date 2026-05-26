@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { pool } from '../db/index.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { forbidden, notFound } from '../utils/http-error.js';
-import { generateIcebreaker, scoreProfileBio } from '../services/ai.service.js';
+import { generateIcebreaker, generateThreeIcebreakers, scoreProfileBio } from '../services/ai.service.js';
 import { routeRateLimit } from '../middleware/rateLimit.js';
 
 const icebreakerBody = z.object({ matchId: z.string().uuid() });
@@ -44,5 +44,12 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
   app.post('/ai/profile-score', aiRouteOpts, async (request, reply) => {
     const { bio } = scoreBody.parse(request.body);
     return reply.send(await scoreProfileBio(bio));
+  });
+
+  // Three icebreakers for the chat bubble UI
+  app.get('/ai/icebreakers/three', aiRouteOpts, async (request, reply) => {
+    const { matchId } = icebreakerBody.parse(request.query);
+    await assertParticipant(matchId, request.user.userId);
+    return reply.send({ icebreakers: await generateThreeIcebreakers(matchId) });
   });
 }

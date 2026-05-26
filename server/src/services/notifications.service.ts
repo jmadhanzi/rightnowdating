@@ -156,7 +156,26 @@ export async function notifyReward(
 }
 
 /**
- * Broadcast a city activity push to dormant users with complete profiles,
+ * Send a nudge to the silent party in a match that has been idle for 24h.
+ * Finds matches with one-sided messages and nudges the silent user.
+ */
+export async function sendIdleMatchNudge(
+  silentUserId: string,
+  senderName: string,
+  matchId: string,
+  lastTopic?: string,
+): Promise<void> {
+  const body = lastTopic
+    ? `Don't leave ${senderName} hanging! They sent you a message about ${lastTopic}.`
+    : `Don't leave ${senderName} hanging! They're waiting on your response.`;
+  await sendToUser(silentUserId, {
+    title: `💬 ${senderName} is waiting…`,
+    body,
+    data: { type: 'idle_match_nudge', matchId },
+    ttl: 3600,
+  });
+}
+
  * deduped to one city push per user per 4 hours, in batches of 100.
  */
 export async function sendCityActivity(

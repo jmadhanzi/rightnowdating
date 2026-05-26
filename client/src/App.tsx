@@ -17,6 +17,7 @@ const ChatsScreen = lazy(() => import('@/screens/ChatsScreen'));
 const ChatScreen = lazy(() => import('@/screens/ChatScreen'));
 const ReferralScreen = lazy(() => import('@/screens/ReferralScreen'));
 const PaywallScreen = lazy(() => import('@/screens/PaywallScreen'));
+const WingmanScreen = lazy(() => import('@/screens/WingmanScreen'));
 
 function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -59,6 +60,7 @@ export default function App(): React.JSX.Element {
                 <Route path="/chat/:matchId" element={<ChatScreen />} />
                 <Route path="/referral" element={<ReferralScreen />} />
                 <Route path="/upgrade" element={<PaywallScreen />} />
+                <Route path="/wingman" element={<WingmanScreen />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

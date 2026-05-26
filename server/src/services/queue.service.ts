@@ -5,7 +5,7 @@ import { pool } from '../db/index.js';
 import { redis } from '../db/redis.js';
 import { emitToUser, emitToCity } from '../socket/emitter.js';
 import { sendSms } from './twilio.service.js';
-import { sendToUser } from './notifications.service.js';
+import { sendToUser, sendIdleMatchNudge } from './notifications.service.js';
 
 export interface CheckinJob {
   matchId: string;
@@ -31,6 +31,7 @@ export const safetyCheckQueue = new Queue<CheckinJob>('safety-check', env.REDIS_
 export const notificationQueue = new Queue<NotificationJob>('notification', env.REDIS_URL);
 export const boostExpiryQueue = new Queue<BoostExpiryJob>('boost-expiry', env.REDIS_URL);
 export const creditGrantQueue = new Queue<Record<string, never>>('credit-grant', env.REDIS_URL);
+export const idleNudgeQueue = new Queue<Record<string, never>>('idle-nudge', env.REDIS_URL);
 
 const PENDING_TTL_SECONDS = 600; // 10 minutes to confirm a check-in
 const ESCALATE_DELAY_MS = 10 * 60 * 1000;
@@ -166,11 +167,69 @@ async function processMonthlyCredits(): Promise<void> {
   logger.info({ count: userIds.length }, 'monthly VIP boost credits granted');
 }
 
+async function processIdleMatchNudges(): Promise<void> {
+  // Find matched conversations where one user sent a message 24-48h ago but the other hasn't replied
+  const { rows } = await pool.query<{
+    match_id: string;
+    sender_id: string;
+    sender_name: string;
+    silent_user_id: string;
+    last_message_content: string;
+  }>(`
+    SELECT DISTINCT ON (m.id)
+      m.id AS match_id,
+      msg.sender_id,
+      p_sender.display_name AS sender_name,
+      CASE WHEN m.user1_id = msg.sender_id THEN m.user2_id ELSE m.user1_id END AS silent_user_id,
+      msg.content AS last_message_content
+    FROM matches m
+    JOIN messages msg ON msg.match_id = m.id
+    JOIN profiles p_sender ON p_sender.id = msg.sender_id
+    WHERE m.status IN ('matched', 'pending')
+      AND msg.created_at BETWEEN NOW() - INTERVAL '48 hours' AND NOW() - INTERVAL '23 hours'
+      AND NOT EXISTS (
+        SELECT 1 FROM messages reply
+        WHERE reply.match_id = m.id
+          AND reply.sender_id != msg.sender_id
+          AND reply.created_at > msg.created_at
+      )
+    ORDER BY m.id, msg.created_at DESC
+    LIMIT 200
+  `);
+
+  if (rows.length === 0) return;
+
+  // Dedupe nudges — only one per silent user per day
+  const BATCH = 50;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    await Promise.all(
+      rows.slice(i, i + BATCH).map(async (row) => {
+        const nudgeKey = `idle_nudge:${row.match_id}:${row.silent_user_id}`;
+        const alreadyNudged = await redis.set(nudgeKey, '1', 'EX', 24 * 60 * 60, 'NX');
+        if (alreadyNudged !== 'OK') return; // already sent today
+
+        // Extract a 2-word topic hint from the message for the nudge
+        const words = row.last_message_content.trim().split(' ');
+        const topic = words.length > 3 ? words.slice(0, 3).join(' ') + '…' : undefined;
+
+        await sendIdleMatchNudge(
+          row.silent_user_id,
+          row.sender_name,
+          row.match_id,
+          topic,
+        );
+      }),
+    );
+  }
+  logger.info({ count: rows.length }, 'idle match nudges sent');
+}
+
 safetyCheckQueue.process('checkin', processCheckin);
 safetyCheckQueue.process('escalate', processEscalation);
 notificationQueue.process(processNotification);
 boostExpiryQueue.process('expire', processBoostExpiry);
 creditGrantQueue.process('grant', processMonthlyCredits);
+idleNudgeQueue.process('scan', processIdleMatchNudges);
 
 /** Add a 1-hour delayed boost-expiry job. */
 export async function scheduleBoostExpiry(
@@ -184,6 +243,11 @@ export async function scheduleBoostExpiry(
 /** Register the monthly (1st of month) VIP credit-grant cron. Idempotent. */
 export async function scheduleMonthlyCredits(): Promise<void> {
   await creditGrantQueue.add({}, { repeat: { cron: '0 0 1 * *' }, jobId: 'monthly-vip-credits' });
+}
+
+/** Run idle match nudge scan every hour. Idempotent. */
+export async function scheduleIdleNudges(): Promise<void> {
+  await idleNudgeQueue.add({}, { repeat: { cron: '0 * * * *' }, jobId: 'idle-match-nudge-scan' });
 }
 
 // --- Global failure logging -------------------------------------------------
@@ -220,5 +284,6 @@ export async function closeQueues(): Promise<void> {
     notificationQueue.close(),
     boostExpiryQueue.close(),
     creditGrantQueue.close(),
+    idleNudgeQueue.close(),
   ]);
 }

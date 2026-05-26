@@ -8,7 +8,7 @@ import BottomNav from '@/components/BottomNav';
 import VibeChip from '@/components/VibeChip';
 import ProfileSkeleton from '@/components/skeletons/ProfileSkeleton';
 import { useToast } from '@/hooks/useToast';
-import { getProfile, getReferralStats, updateProfile } from '@/services/api';
+import { getProfile, getReferralStats, getMyVouches, updateProfile, type WingmanVouch } from '@/services/api';
 import { VIBES } from '@/utils/vibes';
 
 const ALL_VIBES = Object.keys(VIBES) as Vibe[];
@@ -42,6 +42,7 @@ export default function ProfileScreen(): React.JSX.Element {
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [bar, setBar] = useState(0);
   const [referralCount, setReferralCount] = useState(0);
+  const [vouches, setVouches] = useState<WingmanVouch[]>([]);
   const [editPref, setEditPref] = useState<null | 'radius' | 'age' | 'city'>(null);
   const [prefValue, setPrefValue] = useState('');
 
@@ -54,6 +55,9 @@ export default function ProfileScreen(): React.JSX.Element {
       .catch(() => toast.error('Could not load profile'));
     getReferralStats<{ totalReferred: number }>()
       .then((r) => setReferralCount(r.totalReferred))
+      .catch(() => undefined);
+    getMyVouches()
+      .then((r) => setVouches(r.vouches))
       .catch(() => undefined);
   }, [toast]);
 
@@ -360,6 +364,82 @@ export default function ProfileScreen(): React.JSX.Element {
           </span>
           <span style={{ color: 'var(--hot)' }}>→</span>
         </button>
+
+        {/* Wingman vouches shortcut */}
+        <button
+          type="button"
+          onClick={() => navigate('/wingman')}
+          className="flex w-full items-center justify-between rounded-2xl p-4"
+          style={{ background: 'var(--s1)', border: '1px solid var(--s3)' }}
+        >
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">🤝</span>
+            <span className="text-left">
+              <span className="block font-bold" style={{ color: 'var(--tx)' }}>
+                Wingman Reviews
+              </span>
+              <span className="text-xs" style={{ color: vouches.length > 0 ? 'var(--green)' : 'var(--dm)' }}>
+                {vouches.length > 0
+                  ? `${vouches.length} friend review${vouches.length > 1 ? 's' : ''} · 3× more sparks`
+                  : 'Ask a friend to vouch for you'}
+              </span>
+            </span>
+          </span>
+          <span style={{ color: 'var(--hot)' }}>→</span>
+        </button>
+
+        {/* Wingman badges preview (if any vouches) */}
+        {vouches.length > 0 && (
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: 'var(--s1)', border: '1px solid var(--s3)' }}
+          >
+            <div className="mb-3 flex items-center gap-2">
+              <span
+                className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                style={{ background: 'rgba(0,229,91,0.15)', color: 'var(--green)' }}
+              >
+                🛡️ Verified Friend Reviews
+              </span>
+              <span className="text-xs" style={{ color: 'var(--mt)' }}>
+                Visible to your matches
+              </span>
+            </div>
+            {vouches.slice(0, 2).map((vouch) => (
+              <div
+                key={vouch.id}
+                className="mb-2 flex items-start gap-3 last:mb-0"
+              >
+                <div className="flex-1">
+                  <div className="flex flex-wrap gap-1">
+                    {vouch.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full px-2 py-0.5 text-xs font-semibold capitalize"
+                        style={{ background: 'rgba(255,92,0,0.12)', color: 'var(--hot)' }}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  {vouch.endorsement && (
+                    <p className="mt-1 text-xs italic" style={{ color: 'var(--dm)' }}>
+                      "{vouch.endorsement}"
+                    </p>
+                  )}
+                  <p className="mt-0.5 text-[10px]" style={{ color: 'var(--mt)' }}>
+                    — {vouch.voucherName}
+                  </p>
+                </div>
+              </div>
+            ))}
+            {vouches.length > 2 && (
+              <p className="mt-2 text-xs" style={{ color: 'var(--dm)' }}>
+                +{vouches.length - 2} more review{vouches.length - 2 > 1 ? 's' : ''}
+              </p>
+            )}
+          </div>
+        )}
 
         <Button fullWidth size="lg" onClick={() => navigate('/live')}>
           GO LIVE NOW
