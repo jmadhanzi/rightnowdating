@@ -460,7 +460,12 @@ function WingmanDashboard(): React.JSX.Element {
           borderBottom: '1px solid var(--s3)',
         }}
       >
-        <button type="button" onClick={() => navigate(-1)} className="text-xl">
+        <button
+          type="button"
+          aria-label="Back"
+          onClick={() => navigate(-1)}
+          className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center"
+        >
           ←
         </button>
         <p className="flex-1 font-bold">Wingman</p>
@@ -651,11 +656,12 @@ function VouchCard({
         </div>
         <button
           type="button"
+          aria-label={confirmDelete ? "Confirm delete vouch" : "Delete this vouch"}
           onClick={() => {
             if (confirmDelete) onDelete();
             else setConfirmDelete(true);
           }}
-          className="shrink-0 text-xs"
+          className="shrink-0 text-xs focus-visible:ring-2 focus-visible:ring-[var(--err)] focus-visible:rounded"
           style={{ color: confirmDelete ? 'var(--err)' : 'var(--mt)' }}
         >
           {confirmDelete ? 'Confirm?' : '✕'}

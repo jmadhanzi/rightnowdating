@@ -69,9 +69,9 @@ export async function paymentRoutes(app: FastifyInstance): Promise<void> {
         trialDays: SUBSCRIPTION_TRIAL_DAYS,
       });
 
-      // `current_period_end` location varies across Stripe API versions.
+      // `current_period_end` is on Stripe.Subscription at runtime
       const periodEnd =
-        (subscription as unknown as { current_period_end?: number }).current_period_end ??
+        (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end ??
         subscription.trial_end ??
         null;
       await pool.query(
@@ -182,7 +182,7 @@ async function handleWebhookEvent(event: Stripe.Event): Promise<void> {
       const plan = (sub.metadata.plan as Plan) ?? 'free';
       if (!userId) return;
       const periodEnd =
-        (sub as unknown as { current_period_end?: number }).current_period_end ?? null;
+        (sub as Stripe.Subscription & { current_period_end?: number }).current_period_end ?? null;
       await pool.query(
         `UPDATE subscriptions
             SET status = $1,

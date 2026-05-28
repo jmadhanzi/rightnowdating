@@ -173,7 +173,7 @@ export default function PaywallScreen(): React.JSX.Element {
   return (
     <div className="relative min-h-screen" style={{ background: 'var(--s0)', color: 'var(--tx)' }}>
       <header className="flex items-center justify-between px-5 pt-5">
-        <button type="button" onClick={handleClose} className="text-xl">
+        <button type="button" aria-label="Close paywall" onClick={handleClose} className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center">
           ✕
         </button>
         <span

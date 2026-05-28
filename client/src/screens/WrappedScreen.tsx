@@ -92,14 +92,18 @@ export default function WrappedScreen(): React.JSX.Element {
       {/* Tab bar */}
       <div
         className="flex border-b px-5 pt-3"
+        role="tablist"
+        aria-label="Stats view tabs"
         style={{ borderColor: 'var(--s3)', background: 'var(--s0)' }}
       >
         {([ ['weekly', 'This Week'], ['monthly', 'This Month'], ['streak', '🔥 Streak'], ['leaderboard', '🏆 City'] ] as [Tab, string][]).map(([t, label]) => (
           <button
             key={t}
             type="button"
+            aria-selected={tab === t}
+            role="tab"
             onClick={() => setTab(t)}
-            className="mr-4 pb-3 text-sm font-bold"
+            className="mr-4 pb-3 text-sm font-bold focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:rounded"
             style={{
               color: tab === t ? 'var(--hot)' : 'var(--mt)',
               borderBottom: tab === t ? '2px solid var(--hot)' : '2px solid transparent',
@@ -475,8 +479,9 @@ function StreakView({ streak }: { streak: StreakInfo }): React.JSX.Element {
           </p>
           <button
             type="button"
+            aria-label="Go live now to save your streak"
             onClick={() => navigate('/live')}
-            className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold active:scale-95"
+            className="mt-3 w-full rounded-xl py-2.5 text-sm font-bold active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--hot)]"
             style={{ background: 'var(--hot)', color: '#fff' }}
           >
             Save my streak →
@@ -557,8 +562,9 @@ function LeaderboardView({ entries, myUserId }: { entries: LeaderboardEntry[]; m
           </p>
           <button
             type="button"
+            aria-label="Go live now to appear on the leaderboard"
             onClick={() => navigate('/live')}
-            className="mt-4 rounded-full px-6 py-2 text-sm font-bold active:scale-95"
+            className="mt-4 rounded-full px-6 py-2 text-sm font-bold active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--hot)]"
             style={{ background: 'var(--hot)', color: '#fff' }}
           >
             Go Live →

@@ -140,8 +140,12 @@ export async function cancelSubscription(): Promise<{ success: boolean; endsAt: 
 }
 
 // --- Sparks / live / boost ---
-export async function getWhoViewed<T = unknown>(): Promise<T> {
-  const { data } = await api.get<T>('/sparks/who-viewed');
+export interface WhoViewedResponse {
+  count:   number;
+  viewers: Array<{ userId: string; viewedAt: string }>;
+}
+export async function getWhoViewed(): Promise<WhoViewedResponse> {
+  const { data } = await api.get<WhoViewedResponse>('/sparks/who-viewed');
   return data;
 }
 export interface CreateLivePayload {
@@ -224,11 +228,11 @@ export interface UpdateProfilePayload {
   preferred_age_min?: number;
   preferred_age_max?: number;
 }
-export async function updateProfile<T = unknown>(payload: UpdateProfilePayload): Promise<T> {
-  const { data } = await api.patch<T>('/profile', payload);
+export async function updateProfile(payload: UpdateProfilePayload): Promise<Record<string, unknown>> {
+  const { data } = await api.patch<Record<string, unknown>>('/profile', payload);
   return data;
 }
-export async function getProfile<T = unknown>(): Promise<T> {
+export async function getProfile<T extends Record<string, unknown> = Record<string, unknown>>(): Promise<T> {
   const { data } = await api.get<T>('/profile');
   return data;
 }

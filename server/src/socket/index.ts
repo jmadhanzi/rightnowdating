@@ -627,10 +627,8 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
     const token = socket.handshake.auth?.token as string | undefined;
     if (!token) return next(new Error('Unauthorized'));
     try {
-      const decoded = jwt.verify(token, env.JWT_SECRET) as unknown as {
-        userId: string;
-        phone: string;
-      };
+      interface RNJwtPayload { userId: string; phone: string }
+      const decoded = jwt.verify(token, env.JWT_SECRET) as RNJwtPayload;
       socket.data.userId = decoded.userId;
       socket.data.phone = decoded.phone;
       next();

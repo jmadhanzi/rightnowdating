@@ -39,6 +39,7 @@ export default class ErrorBoundary extends Component<Props, State> {
         </p>
         <button
           type="button"
+          aria-label="Reload the application"
           onClick={() => window.location.reload()}
           className="mt-6 rounded-xl px-6 py-3 font-bold uppercase tracking-wide"
           style={{ background: 'linear-gradient(135deg, var(--hot), #ff7a33)', color: '#fff' }}

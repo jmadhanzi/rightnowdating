@@ -340,8 +340,10 @@ export default function MapScreen(): React.JSX.Element {
       {/* GO LIVE floating button */}
       <button
         type="button"
+        aria-label={mySession ? 'Session menu — you are live' : 'Go live now'}
+        aria-pressed={!!mySession}
         onClick={() => (mySession ? setSessionMenu(true) : navigate('/live'))}
-        className="anim-gp absolute right-5 z-30 flex flex-col items-center justify-center rounded-full font-display font-extrabold leading-none active:scale-95"
+        className="anim-gp absolute right-5 z-30 flex flex-col items-center justify-center rounded-full font-display font-extrabold leading-none active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--hot)]"
         style={{
           bottom: NAV_H + DRAWER_H + 16,
           width: 92,
@@ -408,8 +410,9 @@ export default function MapScreen(): React.JSX.Element {
         {plan === 'free' && (
           <button
             type="button"
+            aria-label={`Upgrade — ${viewCount} people viewed your pin today`}
             onClick={() => navigate('/upgrade')}
-            className="mx-5 flex w-[calc(100%-40px)] items-center justify-between rounded-xl px-4 py-2 text-xs"
+            className="mx-5 flex w-[calc(100%-40px)] items-center justify-between rounded-xl px-4 py-2 text-xs focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
             style={{ background: 'var(--s2)', border: '1px solid var(--s4)', color: 'var(--dm)' }}
           >
             <span>{viewCount} people viewed your pin today</span>
@@ -529,8 +532,9 @@ const PersonCard = memo(function PersonCard({
   return (
     <button
       type="button"
+      aria-label={`View ${pin.displayName ?? 'profile'} — ${miles.toFixed(1)} miles away`}
       onClick={onOpen}
-      className="flex w-36 shrink-0 flex-col items-center gap-1 rounded-2xl p-3 text-center active:scale-95"
+      className="flex w-36 shrink-0 flex-col items-center gap-1 rounded-2xl p-3 text-center active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
       style={{ background: 'var(--s2)', border: '1px solid var(--s4)' }}
     >
       <Avatar emoji={pin.emoji ?? '🧑'} size="md" showOnline trustScore={pin.trustScore} />

@@ -747,7 +747,7 @@ function Step2(props: Step2Props): React.JSX.Element {
             {resendIn > 0 ? (
               `Resend in ${resendIn}s`
             ) : (
-              <button type="button" onClick={onResend} style={{ color: 'var(--hot)' }}>
+              <button type="button" aria-label="Resend verification code" onClick={onResend} className="focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:rounded" style={{ color: 'var(--hot)' }}>
                 Resend code
               </button>
             )}

@@ -105,7 +105,7 @@ export default function MeetupScreen(): React.JSX.Element {
           backdropFilter: 'blur(16px)',
         }}
       >
-        <button type="button" onClick={() => navigate('/map')} className="text-xl">
+        <button type="button" aria-label="Back to map" onClick={() => navigate('/map')} className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center">
           ←
         </button>
         <span
