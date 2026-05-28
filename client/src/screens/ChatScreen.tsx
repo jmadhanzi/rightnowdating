@@ -27,7 +27,8 @@ const ChatMessage = memo(function ChatMessage({
         <button
           type="button"
           onClick={() => onToggleTime(message.id)}
-          className="block rounded-2xl px-3 py-2 text-left text-sm"
+          className="block rounded-2xl px-3 py-2 text-left text-sm focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
+          aria-label={showTime ? 'Hide message time' : 'Show message time'}
           style={{
             background: mine ? 'var(--hot)' : 'var(--s2)',
             color: mine ? '#fff' : 'var(--tx)',
@@ -189,7 +190,7 @@ export default function ChatScreen(): React.JSX.Element {
           backdropFilter: 'blur(16px)',
         }}
       >
-        <button type="button" onClick={() => navigate('/chats')} className="text-xl">
+        <button type="button" onClick={() => navigate('/chats')} aria-label="Back to chats" className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded">
           ←
         </button>
         <span className="text-2xl">{match?.other.emoji ?? '🧑'}</span>
@@ -206,7 +207,7 @@ export default function ChatScreen(): React.JSX.Element {
       </p>
 
       {/* Messages */}
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3">
+      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3" role="log" aria-label="Chat messages" aria-live="polite">
         {loading && messages.length === 0 && <ChatSkeleton />}
         {messages.map((m) => (
           <ChatMessage
@@ -244,7 +245,8 @@ export default function ChatScreen(): React.JSX.Element {
                   setDraft(text);
                   setIcebreakersDismissed(true);
                 }}
-                className="anim-fup w-full rounded-2xl px-4 py-3 text-left text-sm active:scale-95"
+                aria-label={`Send icebreaker: ${text}`}
+                className="anim-fup w-full rounded-2xl px-4 py-3 text-left text-sm active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
                 style={{
                   background: 'var(--s2)',
                   border: '1px solid var(--s4)',
@@ -261,7 +263,7 @@ export default function ChatScreen(): React.JSX.Element {
       )}
 
       {theyTyping && (
-          <div className="flex justify-start">
+          <div className="flex justify-start" role="status" aria-live="polite" aria-label={`${match?.other.displayName ?? 'Someone'} is typing`}>
             <div className="flex gap-1 rounded-2xl px-3 py-3" style={{ background: 'var(--s2)' }}>
               {[0, 0.2, 0.4].map((d) => (
                 <span
@@ -279,10 +281,13 @@ export default function ChatScreen(): React.JSX.Element {
       {/* Input */}
       <div
         className="sticky bottom-0 flex items-center gap-2 px-4 py-3"
+        role="form"
+        aria-label="Send a message"
         style={{
-          background: 'rgba(8,8,8,0.9)',
+          background: 'rgba(8,8,8,0.97)',
           backdropFilter: 'blur(16px)',
           borderTop: '1px solid var(--s3)',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
         <input
@@ -290,16 +295,19 @@ export default function ChatScreen(): React.JSX.Element {
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && send()}
           placeholder="Type a message"
-          className="flex-1 rounded-full px-4 py-3 outline-none"
+          aria-label="Message input"
+          className="flex-1 rounded-full px-4 py-3 outline-none focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
           style={{ background: 'var(--s2)', border: '1px solid var(--s4)', color: 'var(--tx)' }}
         />
         <button
           type="button"
           onClick={send}
-          className="flex h-11 w-11 items-center justify-center rounded-full active:scale-95"
-          style={{ background: 'linear-gradient(135deg, var(--hot), #ff8c00)', color: '#fff' }}
+          aria-label="Send message"
+          disabled={!draft.trim()}
+          className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full active:scale-90 disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
+          style={{ background: draft.trim() ? 'linear-gradient(135deg, var(--hot), #ff8c00)' : 'var(--s3)', color: '#fff' }}
         >
-          ➤
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
         </button>
       </div>
     </div>

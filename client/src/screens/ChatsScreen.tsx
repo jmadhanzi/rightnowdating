@@ -40,26 +40,37 @@ export default function ChatsScreen(): React.JSX.Element {
   return (
     <div
       className="flex min-h-screen flex-col"
-      style={{ background: 'var(--s0)', color: 'var(--tx)', paddingBottom: 'var(--nav-h)' }}
+      style={{ background: 'var(--s0)', color: 'var(--tx)', paddingBottom: 'calc(var(--nav-h) + env(safe-area-inset-bottom))' }}
     >
       <header
         className="sticky top-0 z-30 flex items-center justify-between px-5"
+        role="banner"
         style={{
           height: 'var(--hdr-h)',
-          background: 'rgba(8,8,8,0.85)',
+          background: 'rgba(8,8,8,0.92)',
           backdropFilter: 'blur(16px)',
+          borderBottom: '0.5px solid var(--s3)',
         }}
       >
-        <button type="button" className="text-xl">
+        <button
+          type="button"
+          aria-label="Open menu"
+          className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+        >
           ☰
         </button>
         <span
           className="font-display text-xl font-extrabold italic tracking-tight"
           style={{ color: 'var(--hot)' }}
+          aria-label="RIGHTNOW app"
         >
           RIGHTNOW
         </span>
-        <button type="button" className="text-xl">
+        <button
+          type="button"
+          aria-label="Search chats"
+          className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+        >
           🔍
         </button>
       </header>
@@ -93,7 +104,8 @@ export default function ChatsScreen(): React.JSX.Element {
                     key={c.matchId}
                     type="button"
                     onClick={() => navigate(`/chat/${c.matchId}`)}
-                    className="mb-3 flex w-full items-center gap-3 rounded-2xl p-3 text-left"
+                    aria-label={`Open chat with ${c.partner.displayName}. Last message: ${c.lastMessage?.content ?? 'No messages yet'}`}
+                    className="mb-3 flex w-full items-center gap-3 rounded-2xl p-3 text-left focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
                     style={{ background: 'var(--s1)', border: '1px solid var(--green)' }}
                   >
                     <Avatar
@@ -134,13 +146,15 @@ export default function ChatsScreen(): React.JSX.Element {
                   key={c.matchId}
                   type="button"
                   onClick={() => navigate(`/chat/${c.matchId}`)}
-                  className="mb-2 flex w-full items-center gap-3 rounded-2xl p-3 text-left"
+                  aria-label={`${c.partner.displayName}${unread > 0 ? `, ${unread} unread message${unread > 1 ? 's' : ''}` : ''}. Last: ${c.lastMessage?.content ?? 'No messages yet'}`}
+                  className="mb-2 flex w-full items-center gap-3 rounded-2xl p-3 text-left focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
                   style={{ background: 'var(--s1)', border: '1px solid var(--s3)' }}
                 >
                   <div className="relative">
                     <Avatar emoji={c.partner.emoji} size="md" trustScore={c.partner.trustScore} />
                     {unread > 0 && (
                       <span
+                        aria-hidden="true"
                         className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full"
                         style={{ background: 'var(--hot)', border: '2px solid var(--s1)' }}
                       />

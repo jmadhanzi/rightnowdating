@@ -281,8 +281,12 @@ export default function PaywallScreen(): React.JSX.Element {
           </div>
         )}
 
-        {/* Plan cards */}
-        <div className="space-y-3">
+        {/* Plan cards — role=radiogroup so screen readers announce as selection group */}
+        <div
+          className="space-y-3"
+          role="radiogroup"
+          aria-label="Select a subscription plan"
+        >
           {PLANS.map((p) => (
             <PlanCard
               key={p.key}
@@ -472,8 +476,11 @@ const PlanCard = memo(function PlanCard({
   return (
     <button
       type="button"
+      role="radio"
+      aria-checked={selected}
+      aria-label={`${plan.name} plan${plan.key !== 'free' && PRICING[plan.key as Exclude<Plan,'free'>] ? ` — ${PRICING[plan.key as Exclude<Plan,'free'>][billing].display} ${PRICING[plan.key as Exclude<Plan,'free'>][billing].sub}` : ''}`}
       onClick={() => onSelect(plan.key)}
-      className="block w-full rounded-2xl p-4 text-left"
+      className="block w-full rounded-2xl p-4 text-left focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
       style={{
         background: 'var(--s1)',
         border: `2px solid ${selected ? plan.accent : 'var(--s3)'}`,

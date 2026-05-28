@@ -89,14 +89,13 @@ export default function VoiceNoteRecorder({
       const blob = await res.blob();
       const file = new File([blob], 'voice_note.webm', { type: 'audio/webm' });
 
-      // Upload via the profile API
-      const { default: apiModule } = await import('@/services/api');
-      type ApiWithVoice = { uploadVoiceNote: (f: File) => Promise<{ url: string }> };
-      const url = await (apiModule as unknown as ApiWithVoice).uploadVoiceNote(file);
+      // Upload via the profile API (named import avoids dynamic cast)
+      const { uploadVoiceNote } = await import('@/services/api');
+      const result = await uploadVoiceNote(file);
       URL.revokeObjectURL(audioUrl);
-      setAudioUrl(url.url);
+      setAudioUrl(result.url);
       setState('done');
-      onSaved(url.url);
+      onSaved(result.url);
     } catch {
       setState('error');
       setError('Upload failed. Please try again.');

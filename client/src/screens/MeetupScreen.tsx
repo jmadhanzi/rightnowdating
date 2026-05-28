@@ -296,7 +296,8 @@ export default function MeetupScreen(): React.JSX.Element {
         <button
           type="button"
           onClick={() => setSosOpen(true)}
-          className="flex items-center justify-center rounded-xl font-bold active:scale-95"
+          aria-label="Emergency SOS — tap to alert your trusted contacts"
+          className="flex items-center justify-center rounded-xl font-bold active:scale-95 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--err)]"
           style={{ width: 56, height: 56, background: 'var(--err)', color: '#fff' }}
         >
           SOS

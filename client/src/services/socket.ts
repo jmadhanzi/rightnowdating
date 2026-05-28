@@ -45,7 +45,14 @@ function bindListeners(s: RightnowSocket): void {
   s.on('message:received', (msg) => useChatStore.getState().addMessage(msg.matchId, msg));
 
   // Group double-date match → navigate to /group/:matchId
-  s.on('group:match', (payload: { matchId: string; type: string; members: unknown[] }) => {
+interface GroupMatchMember {
+  userId:      string;
+  displayName: string;
+  age:         number;
+  avatarEmoji: string;
+}
+
+  s.on('group:match', (payload: { matchId: string; type: string; members: GroupMatchMember[] }) => {
     // Store group match data for GroupChatScreen to pick up
     sessionStorage.setItem(`group:${payload.matchId}`, JSON.stringify(payload));
     // Navigate to group chat (use window.location to avoid importing useNavigate in a non-component)

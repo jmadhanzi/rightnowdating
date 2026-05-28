@@ -83,7 +83,8 @@ export async function logout(refreshToken: string): Promise<void> {
 }
 
 // --- Referrals ---
-export async function getReferralStats<T = unknown>(): Promise<T> {
+// Generic to allow each call-site to provide its expected response shape
+export async function getReferralStats<T extends Record<string, unknown> = Record<string, unknown>>(): Promise<T> {
   const { data } = await api.get<T>('/referrals/stats');
   return data;
 }
