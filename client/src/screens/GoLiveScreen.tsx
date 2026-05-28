@@ -8,11 +8,12 @@ import LiveBadge from '@/components/LiveBadge';
 import { useToast } from '@/hooks/useToast';
 import { useMapStore } from '@/store/useMapStore';
 import { useSubscriptionStore } from '@/store/useSubscriptionStore';
-import { createLive, getProfile } from '@/services/api';
+import { createLive, getProfile, getMyDuo, type DuoProfile } from '@/services/api';
 import { goOffline } from '@/services/socket';
 import { VIBES } from '@/utils/vibes';
 import { neighborhoodCoords } from '@/utils/geo';
 import { formatMMSS } from '@/utils/time';
+import { OPENNESS_OPTIONS, type OpennessLevel } from '@/screens/DuoScreen';
 
 type WindowMinutes = 30 | 60 | 120;
 const GO_LIVE_VIBES: Vibe[] = ['coffee', 'drinks', 'walk', 'food', 'late'];
@@ -42,6 +43,7 @@ export default function GoLiveScreen(): React.JSX.Element {
 
   const [vibe, setVibe] = useState<Vibe>('drinks');
   const [windowMinutes, setWindowMinutes] = useState<WindowMinutes>(60);
+  const [openness, setOpenness] = useState<OpennessLevel>('solo');
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [cityNum, setCityNum] = useState(storeCount || 47);
   const [pressed, setPressed] = useState(false);
@@ -50,12 +52,16 @@ export default function GoLiveScreen(): React.JSX.Element {
   const [neighborhoodMode, setNeighborhoodMode] = useState(false);
   const [neighborhood, setNeighborhood] = useState('');
   const [dailyCount, setDailyCount] = useState(getDailyCount);
+  const [activeDuo, setActiveDuo] = useState<DuoProfile | null>(null);
 
   const locked = plan === 'free' && dailyCount >= 2 && !mySession;
 
   useEffect(() => {
     getProfile<ProfileStats>()
       .then(setStats)
+      .catch(() => undefined);
+    getMyDuo()
+      .then(setActiveDuo)
       .catch(() => undefined);
   }, []);
 
@@ -228,6 +234,81 @@ export default function GoLiveScreen(): React.JSX.Element {
             );
           })}
         </div>
+
+        {/* Openness selector — how open are you tonight? */}
+        {!mySession && (
+          <div>
+            <p
+              className="mb-2 text-xs font-bold uppercase tracking-widest"
+              style={{ color: 'var(--dm)' }}
+            >
+              How open are you tonight?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {OPENNESS_OPTIONS.map((opt) => {
+                const active = openness === opt.level;
+                const isDuoOption = opt.level === 'duo_friendly' || opt.level === 'group';
+                const needsDuo = isDuoOption && !activeDuo;
+                return (
+                  <button
+                    key={opt.level}
+                    type="button"
+                    onClick={() => {
+                      if (needsDuo) {
+                        navigate('/duo');
+                        return;
+                      }
+                      if (opt.level === 'open_night') {
+                        navigate('/duo?tab=nights');
+                        return;
+                      }
+                      setOpenness(opt.level);
+                    }}
+                    className="relative flex items-center gap-2 rounded-2xl px-3 py-3 text-left active:scale-95"
+                    style={{
+                      background: active ? opt.bg : 'var(--s1)',
+                      border: `1px solid ${active ? opt.border : 'var(--s3)'}`,
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    <span className="text-2xl shrink-0">{opt.emoji}</span>
+                    <div className="min-w-0">
+                      <p
+                        className="text-xs font-bold leading-tight"
+                        style={{ color: active ? opt.color : 'var(--tx)' }}
+                      >
+                        {opt.label}
+                      </p>
+                      <p className="text-[10px] leading-snug mt-0.5" style={{ color: 'var(--mt)' }}>
+                        {needsDuo ? 'Set up a duo first →' : opt.sub}
+                      </p>
+                    </div>
+                    {active && (
+                      <span
+                        className="absolute right-2 top-2 h-2 w-2 rounded-full"
+                        style={{ background: opt.color }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Active duo badge */}
+            {activeDuo?.status === 'active' && (
+              <div
+                className="mt-2 flex items-center gap-2 rounded-xl px-3 py-2"
+                style={{ background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.25)' }}
+              >
+                <span className="text-lg">{activeDuo.partner.avatarEmoji}</span>
+                <p className="flex-1 text-xs" style={{ color: '#60a5fa' }}>
+                  🤝 Going live with {activeDuo.partner.displayName}
+                </p>
+                <span className="text-[10px]" style={{ color: 'var(--mt)' }}>active duo</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* GO LIVE button */}
         <div className="flex flex-col items-center py-2">

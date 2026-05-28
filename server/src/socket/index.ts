@@ -26,6 +26,7 @@ import {
   expireSpark,
 } from '../services/sparks.service.js';
 import { recordReferredFirstDate } from '../services/referrals.service.js';
+import { fireDuoSpark, checkDuoMutualMatch, getMyDuo } from '../services/duo.service.js';
 import type { RNServer, RNSocket, SocketData } from './types.js';
 import { setIO } from './emitter.js';
 
@@ -673,6 +674,94 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
       );
       socket.on('typing:start', (payload: { matchId: string }) =>
         guard(socket, 'typing:start', () => handleTyping(io, socket, payload)),
+      );
+
+      // ── Duo sparks ───────────────────────────────────────────────────────
+      socket.on(
+        'duo:spark',
+        (payload: { fromDuoId: string; toDuoId?: string; toUserId?: string }) =>
+          guard(socket, 'duo:spark', async () => {
+            const { fromDuoId, toDuoId, toUserId } = payload;
+            const userId = socket.data.userId;
+
+            const { duoSparkId, bothMembersSparked } = await fireDuoSpark({
+              fromDuoId,
+              sparkingUserId: userId,
+              toDuoId,
+              toUserId,
+            });
+
+            // Notify the sparking user's duo partner that they sparked
+            const myDuo = await getMyDuo(userId);
+            if (myDuo) {
+              io.to(userRoom(myDuo.partner.id)).emit('notification', {
+                title: '⚡ Your partner sparked someone!',
+                body: 'Tap to add your spark — both of you must agree for a double match.',
+                data: { type: 'partner_sparked', duoSparkId, fromDuoId, toDuoId, toUserId },
+              });
+            }
+
+            if (bothMembersSparked) {
+              // Both members sparked — check if target has also sparked back (mutual group match)
+              const { matchId } = await checkDuoMutualMatch({ fromDuoId, toDuoId, toUserId });
+              if (matchId) {
+                // Fetch all 4 members and emit group:match to each
+                const { rows: members } = await pool.query<{ user_id: string }>(
+                  'SELECT user_id FROM group_match_members WHERE group_match_id = $1',
+                  [matchId],
+                );
+                const profiles = await pool.query<{
+                  id: string;
+                  display_name: string;
+                  age: number;
+                  avatar_emoji: string;
+                }>(
+                  'SELECT id, display_name, age, avatar_emoji FROM profiles WHERE id = ANY($1)',
+                  [members.map((m) => m.user_id)],
+                );
+                const groupPayload = {
+                  matchId,
+                  type: 'double_date',
+                  members: profiles.rows.map((p) => ({
+                    userId: p.id,
+                    displayName: p.display_name,
+                    age: p.age,
+                    avatarEmoji: p.avatar_emoji,
+                  })),
+                };
+                for (const m of members) {
+                  io.to(userRoom(m.user_id)).emit('group:match', groupPayload);
+                }
+                logger.info({ matchId, members: members.length }, 'group double date match created');
+              } else {
+                // Both our members sparked — notify the target duo to spark back
+                if (toDuoId) {
+                  const targetMembers = await pool.query<{ inviter_id: string; partner_id: string }>(
+                    'SELECT inviter_id, partner_id FROM duos WHERE id = $1',
+                    [toDuoId],
+                  );
+                  if (targetMembers.rows[0]) {
+                    for (const uid of [
+                      targetMembers.rows[0].inviter_id,
+                      targetMembers.rows[0].partner_id,
+                    ]) {
+                      io.to(userRoom(uid)).emit('duo:spark:received', {
+                        duoSparkId,
+                        fromDuoId,
+                        bothMembersSparked: true,
+                      });
+                    }
+                  }
+                } else if (toUserId) {
+                  io.to(userRoom(toUserId)).emit('duo:spark:received', {
+                    duoSparkId,
+                    fromDuoId,
+                    bothMembersSparked: true,
+                  });
+                }
+              }
+            }
+          }),
       );
 
       socket.on('disconnect', (reason) => {

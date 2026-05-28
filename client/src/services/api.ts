@@ -379,3 +379,98 @@ export async function getMyVouches(): Promise<{ vouches: WingmanVouch[] }> {
 export async function deleteMyVouch(vouchId: string): Promise<void> {
   await api.delete(`/wingman/vouches/${vouchId}`);
 }
+
+// --- Duo Mode & Open Nights ---
+
+export type OpennessLevel = 'solo' | 'duo_friendly' | 'group' | 'open_night';
+
+export interface DuoPartner {
+  id: string;
+  displayName: string;
+  age: number;
+  avatarEmoji: string;
+  trustScore: number;
+}
+
+export interface DuoProfile {
+  duoId: string;
+  status: 'pending' | 'active' | 'ended';
+  partner: DuoPartner;
+  createdAt: string;
+}
+
+export interface OpenNight {
+  id: string;
+  hostUserId: string;
+  hostDisplayName: string;
+  hostAvatarEmoji: string;
+  duoId: string | null;
+  partnerDisplayName: string | null;
+  venueName: string;
+  headline: string;
+  vibe: string;
+  capacity: number;
+  spotsTaken: number;
+  spotsLeft: number;
+  latitude: number | null;
+  longitude: number | null;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export async function getMyDuo(): Promise<DuoProfile | null> {
+  const { data } = await api.get('/duo/me');
+  return data;
+}
+
+export async function searchUsersForDuo(q: string): Promise<{
+  users: Array<{ id: string; displayName: string; age: number; avatarEmoji: string }>;
+}> {
+  const { data } = await api.get('/duo/search', { params: { q } });
+  return data;
+}
+
+export async function inviteDuo(partnerId: string): Promise<{ duoId: string }> {
+  const { data } = await api.post('/duo/invite', { partnerId });
+  return data;
+}
+
+export async function acceptDuo(duoId: string): Promise<void> {
+  await api.post('/duo/accept', { duoId });
+}
+
+export async function endDuo(duoId: string): Promise<void> {
+  await api.post('/duo/end', { duoId });
+}
+
+export async function getNearbyOpenNights(lat: number, lng: number): Promise<{ nights: OpenNight[] }> {
+  const { data } = await api.get('/open-nights/nearby', { params: { lat, lng } });
+  return data;
+}
+
+export async function createOpenNight(payload: {
+  duoId?: string;
+  venueName: string;
+  headline: string;
+  vibe: string;
+  capacity: number;
+  latitude?: number;
+  longitude?: number;
+  durationMinutes?: number;
+}): Promise<{ openNightId: string }> {
+  const { data } = await api.post('/open-nights', payload);
+  return data;
+}
+
+export async function requestJoinOpenNight(payload: {
+  openNightId: string;
+  duoId?: string;
+  message?: string;
+}): Promise<{ requestId: string }> {
+  const { data } = await api.post('/open-nights/request', payload);
+  return data;
+}
+
+export async function respondToOpenNightRequest(requestId: string, accept: boolean): Promise<void> {
+  await api.post('/open-nights/respond', { requestId, accept });
+}
