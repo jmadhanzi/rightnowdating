@@ -44,6 +44,17 @@ function bindListeners(s: RightnowSocket): void {
   s.on('match:created', (match) => useMatchStore.getState().setActiveMatch(match));
   s.on('message:received', (msg) => useChatStore.getState().addMessage(msg.matchId, msg));
 
+  // Group double-date match → navigate to /group/:matchId
+  s.on('group:match', (payload: { matchId: string; type: string; members: unknown[] }) => {
+    // Store group match data for GroupChatScreen to pick up
+    sessionStorage.setItem(`group:${payload.matchId}`, JSON.stringify(payload));
+    // Navigate to group chat (use window.location to avoid importing useNavigate in a non-component)
+    const current = window.location.pathname;
+    if (!current.startsWith('/group/')) {
+      window.location.href = `/group/${payload.matchId}`;
+    }
+  });
+
   // On every (re)connect: clear stale map pins from before the disconnect,
   // because we'll receive a fresh snapshot when the server processes go:live.
   // Also recover any active match the user may have missed while offline.
@@ -127,4 +138,18 @@ export function confirmCheckin(matchId: string): void {
 }
 export function emitTyping(matchId: string): void {
   getSocket().emit('typing:start', { matchId });
+}
+
+// ── Group chat (Duo Mode) ─────────────────────────────────────────────────
+export function joinGroupChat(matchId: string): void {
+  getSocket().emit('group:join', { matchId });
+}
+export function sendGroupMessage(matchId: string, content: string): void {
+  getSocket().emit('group:message:send', { matchId, content });
+}
+export function emitGroupTypingStart(matchId: string): void {
+  getSocket().emit('group:typing:start', { matchId });
+}
+export function emitGroupTypingStop(matchId: string): void {
+  getSocket().emit('group:typing:stop', { matchId });
 }

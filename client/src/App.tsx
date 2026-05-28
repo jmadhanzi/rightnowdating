@@ -20,6 +20,7 @@ const PaywallScreen = lazy(() => import('@/screens/PaywallScreen'));
 const WingmanScreen = lazy(() => import('@/screens/WingmanScreen'));
 const DuoScreen = lazy(() => import('@/screens/DuoScreen'));
 const WrappedScreen = lazy(() => import('@/screens/WrappedScreen'));
+const GroupChatScreen = lazy(() => import('@/screens/GroupChatScreen'));
 
 function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -65,6 +66,7 @@ export default function App(): React.JSX.Element {
                 <Route path="/wingman" element={<WingmanScreen />} />
                 <Route path="/duo" element={<DuoScreen />} />
                 <Route path="/wrapped" element={<WrappedScreen />} />
+                <Route path="/group/:matchId" element={<GroupChatScreen />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

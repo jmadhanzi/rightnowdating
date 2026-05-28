@@ -277,8 +277,25 @@ export default function MapScreen(): React.JSX.Element {
 
   return (
     <div className="fixed inset-0 overflow-hidden" style={{ background: 'var(--s0)' }}>
+      {/* Screen-reader accessible list view of live users (WCAG 1.1.1) */}
+      <div className="sr-only" role="region" aria-label="Live users nearby — accessible list view">
+        <h1>RIGHTNOW Map — {visiblePins.length} people live nearby</h1>
+        {visiblePins.length === 0 && <p>No one is live nearby right now. Check back later or go live yourself to be the first.</p>}
+        <ul role="list">
+          {visiblePins.map((pin) => (
+            <li key={pin.sessionId}>
+              {pin.displayName ?? 'Someone'}{pin.age ? `, ${pin.age}` : ''} —
+              {distanceMiles(pin).toFixed(1)} miles away,
+              vibe: {pin.vibe}.
+              Trust score: {pin.trustScore}.
+              {pin.boosted ? ' New to the app — be the first to spark them!' : ''}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       {MAPBOX_TOKEN ? (
-        <div ref={mapContainerRef} className="absolute inset-0" />
+        <div ref={mapContainerRef} className="absolute inset-0" aria-hidden="true" />
       ) : (
         <div
           className="absolute inset-0 flex items-center justify-center text-center text-sm"

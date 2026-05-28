@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import debounce from 'lodash.debounce';
 import type { Vibe } from '@rightnow/shared';
 
 import Button from '@/components/Button';
 import BottomNav from '@/components/BottomNav';
 import VibeChip from '@/components/VibeChip';
+import VoiceNoteRecorder from '@/components/VoiceNoteRecorder';
 import ProfileSkeleton from '@/components/skeletons/ProfileSkeleton';
 import { useToast } from '@/hooks/useToast';
 import { getProfile, getReferralStats, getMyVouches, getProfileCompletion, getMyStreak, updateProfile, type WingmanVouch, type CompletionScore, type StreakInfo } from '@/services/api';
@@ -28,6 +29,7 @@ interface ProfileData {
   verified_id: boolean;
   verified_phone: boolean;
   photo_matched: boolean;
+  voice_note_url: string | null;
   preferred_radius_miles: number | null;
   preferred_age_min: number | null;
   preferred_age_max: number | null;
@@ -35,18 +37,20 @@ interface ProfileData {
 
 export default function ProfileScreen(): React.JSX.Element {
   const navigate = useNavigate();
-  const toast = useToast();
+  const toast    = useToast();
+  const [searchParams] = useSearchParams();
 
-  const [profile, setProfile] = useState<ProfileData | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [emojiOpen, setEmojiOpen] = useState(false);
-  const [bar, setBar] = useState(0);
+  const [profile,    setProfile]    = useState<ProfileData | null>(null);
+  const [isEditing,  setIsEditing]  = useState(false);
+  const [emojiOpen,  setEmojiOpen]  = useState(false);
+  const [bar,        setBar]        = useState(0);
   const [referralCount, setReferralCount] = useState(0);
-  const [vouches, setVouches] = useState<WingmanVouch[]>([]);
+  const [vouches,    setVouches]    = useState<WingmanVouch[]>([]);
   const [completion, setCompletion] = useState<CompletionScore | null>(null);
-  const [streak, setStreak] = useState<StreakInfo | null>(null);
-  const [editPref, setEditPref] = useState<null | 'radius' | 'age' | 'city'>(null);
-  const [prefValue, setPrefValue] = useState('');
+  const [streak,     setStreak]     = useState<StreakInfo | null>(null);
+  const [editPref,   setEditPref]   = useState<null | 'radius' | 'age' | 'city'>(null);
+  const [prefValue,  setPrefValue]  = useState('');
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(searchParams.get('verify') === '1');
 
   useEffect(() => {
     getProfile<ProfileData>()
@@ -294,10 +298,41 @@ export default function ProfileScreen(): React.JSX.Element {
             />
           </div>
           <div className="mt-3 flex flex-wrap gap-3 text-xs">
-            <Check ok={profile.verified_id} label="ID Verified" />
+            <Check ok={profile.verified_id}    label="ID Verified" />
             <Check ok={profile.verified_phone} label="Phone Verified" />
-            <Check ok={profile.photo_matched} label="Photo Match" />
+            <Check ok={profile.photo_matched}  label="Photo Match" />
+            <Check ok={!!profile.voice_note_url} label="Voice Note" />
           </div>
+
+          {/* Voice note action */}
+          <button
+            type="button"
+            onClick={() => setShowVoiceRecorder(true)}
+            className="mt-3 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
+            style={{
+              background: profile.voice_note_url
+                ? 'rgba(0,194,77,0.06)'
+                : 'rgba(255,92,0,0.06)',
+              border: `0.5px solid ${profile.voice_note_url ? 'rgba(0,194,77,0.3)' : 'rgba(255,92,0,0.25)'}`,
+            }}
+            aria-label={profile.voice_note_url ? 'Re-record your voice note' : 'Record a voice note — add 15 profile points'}
+          >
+            <span className="text-xl" aria-hidden="true">🎙️</span>
+            <div className="flex-1">
+              <p className="text-xs font-semibold"
+                style={{ color: profile.voice_note_url ? 'var(--green)' : 'var(--hot)' }}>
+                {profile.voice_note_url
+                  ? '✓ Voice note recorded'
+                  : 'Record a voice note (+15 pts)'}
+              </p>
+              <p className="text-[10px]" style={{ color: 'var(--mt)' }}>
+                {profile.voice_note_url
+                  ? 'Tap to re-record'
+                  : '90% catfish reduction · 8 seconds max'}
+              </p>
+            </div>
+            <span style={{ color: 'var(--hot)' }} aria-hidden="true">→</span>
+          </button>
         </div>
 
         {/* Vibes */}
@@ -581,6 +616,18 @@ export default function ProfileScreen(): React.JSX.Element {
             Save
           </Button>
         </Sheet>
+      )}
+
+      {showVoiceRecorder && profile && (
+        <VoiceNoteRecorder
+          currentUrl={profile.voice_note_url}
+          onSaved={(url) => {
+            setProfile((p) => p ? { ...p, voice_note_url: url } : p);
+            setShowVoiceRecorder(false);
+            toast.success('Voice note saved! +15 profile points 🎙️');
+          }}
+          onClose={() => setShowVoiceRecorder(false)}
+        />
       )}
 
       <BottomNav />

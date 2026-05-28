@@ -566,3 +566,13 @@ export async function updateNotificationPrefs(prefs: {
 }): Promise<void> {
   await api.put('/notification-prefs', prefs);
 }
+
+// --- Voice Note ---
+export async function uploadVoiceNote(file: File): Promise<{ url: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post('/profile/voice-note', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return data;
+}

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import multipart from '@fastify/multipart';
 
 import { pool } from '../db/index.js';
 import { redis } from '../db/redis.js';
@@ -43,6 +44,8 @@ interface ProfileRow {
 }
 
 export async function profileRoutes(app: FastifyInstance): Promise<void> {
+  // Register multipart support for voice note uploads
+  await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB max
   app.get('/profile', { preHandler: authenticateToken }, async (request, reply) => {
     const cacheKey = profileCacheKey(request.user.userId);
     const cached = await redis.get(cacheKey).catch(() => null);
@@ -112,4 +115,49 @@ export async function profileRoutes(app: FastifyInstance): Promise<void> {
     await redis.del(profileCacheKey(userId)).catch(() => undefined);
     return reply.send(rows[0]);
   });
+
+  // ── Voice note upload ─────────────────────────────────────────────────────
+  app.post(
+    '/profile/voice-note',
+    {
+      preHandler: authenticateToken,
+      config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
+    },
+    async (request, reply) => {
+      const userId = request.user.userId;
+      const data   = await request.file?.();
+
+      if (!data) return reply.status(400).send({ error: 'No file provided' });
+
+      // Validate mime type
+      const allowed = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg'];
+      if (!allowed.includes(data.mimetype)) {
+        return reply.status(400).send({ error: 'Invalid audio format' });
+      }
+
+      // Upload to Cloudinary
+      const { uploadBuffer } = await import('../services/cloudinary.service.js');
+      const buffer   = await data.toBuffer();
+      const uploadUrl = await uploadBuffer(buffer, {
+        folder:        'voice_notes',
+        resource_type: 'video', // Cloudinary uses 'video' for audio
+        public_id:     `voice_${userId}`,
+        overwrite:     true,
+        format:        'mp3',
+        transformation: [{ audio_codec: 'mp3', bit_rate: '64k' }],
+      });
+
+      // Save to profile
+      await pool.query(
+        'UPDATE profiles SET voice_note_url = $1 WHERE id = $2',
+        [uploadUrl, userId],
+      );
+
+      // Bust completion cache
+      const { bustCompletionCache } = await import('../services/profileCompletion.service.js');
+      await bustCompletionCache(userId);
+
+      return reply.send({ url: uploadUrl });
+    },
+  );
 }

@@ -19,31 +19,45 @@ export function isStripeConfigured(): boolean {
   return Boolean(env.STRIPE_SECRET_KEY);
 }
 
-export type BillingPeriod = 'monthly' | 'annual';
+export type BillingPeriod = 'weekly' | 'monthly' | 'annual';
 export const BOOST_AMOUNT_CENTS = 299;
 
 interface CatalogEntry {
   lookupKey: string;
-  product: string;
-  amount: number;
-  interval?: 'month' | 'year';
+  product:   string;
+  amount:    number;
+  interval?: 'week' | 'month' | 'year';
 }
 
 const SUBSCRIPTION_CATALOG: CatalogEntry[] = [
+  // Weekly plans — 3-day free trial, lowest-commitment entry point
+  {
+    lookupKey: 'rightnow_plus_weekly',
+    product:   'RIGHTNOW+ Weekend',
+    amount:    799,           // $7.99
+    interval:  'week',
+  },
+  {
+    lookupKey: 'rightnow_vip_weekly',
+    product:   'RIGHTNOW VIP Weekend',
+    amount:    1299,          // $12.99
+    interval:  'week',
+  },
+  // Monthly plans
   {
     lookupKey: 'rightnow_plus_monthly',
-    product: 'RIGHTNOW+ Monthly',
-    amount: 1499,
-    interval: 'month',
+    product:   'RIGHTNOW+ Monthly',
+    amount:    1499,
+    interval:  'month',
   },
   {
     lookupKey: 'rightnow_plus_annual',
-    product: 'RIGHTNOW+ Annual',
-    amount: 6900,
-    interval: 'year',
+    product:   'RIGHTNOW+ Annual',
+    amount:    6900,
+    interval:  'year',
   },
   { lookupKey: 'rightnow_vip_monthly', product: 'VIP Monthly', amount: 2999, interval: 'month' },
-  { lookupKey: 'rightnow_vip_annual', product: 'VIP Annual', amount: 13700, interval: 'year' },
+  { lookupKey: 'rightnow_vip_annual',  product: 'VIP Annual',  amount: 13700, interval: 'year' },
 ];
 const BOOST_ENTRY: CatalogEntry = {
   lookupKey: 'rightnow_pin_boost',

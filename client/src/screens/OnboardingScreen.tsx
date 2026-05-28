@@ -570,13 +570,15 @@ function Step1(props: Step1Props): React.JSX.Element {
               height: 54,
             }}
           >
-            <span style={{ color: 'var(--dm)' }}>🇺🇸 +1</span>
+            <span style={{ color: 'var(--dm)' }} aria-hidden="true">🇺🇸 +1</span>
             <input
               inputMode="numeric"
+              aria-label="US phone number, 10 digits"
+              autoComplete="tel-national"
               value={phone}
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
               placeholder="305 555 1234"
-              className="flex-1 bg-transparent outline-none"
+              className="flex-1 bg-transparent outline-none focus-visible:outline-none"
               style={{ color: 'var(--tx)', fontSize: 17 }}
             />
           </div>
@@ -709,7 +711,11 @@ function Step2(props: Step2Props): React.JSX.Element {
           >
             Enter the 6-digit code
           </p>
-          <div className={`flex justify-between gap-2 ${shakeOtp ? 'anim-shake' : ''}`}>
+          <div
+            className={`flex justify-between gap-2 ${shakeOtp ? 'anim-shake' : ''}`}
+            role="group"
+            aria-label="6-digit verification code"
+          >
             {Array.from({ length: 6 }, (_, i) => (
               <input
                 key={i}
@@ -718,10 +724,12 @@ function Step2(props: Step2Props): React.JSX.Element {
                 }}
                 inputMode="numeric"
                 maxLength={1}
+                aria-label={`Digit ${i + 1} of 6`}
+                autoComplete={i === 0 ? 'one-time-code' : 'off'}
                 value={otp[i] ?? ''}
                 onChange={(e) => onOtpChange(i, e.target.value)}
                 onKeyDown={(e) => onOtpKeyDown(i, e)}
-                className="h-14 w-12 rounded-xl text-center text-2xl font-bold outline-none"
+                className="h-14 w-12 rounded-xl text-center text-2xl font-bold outline-none focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
                 style={{
                   background: 'var(--s2)',
                   border: `1px solid ${error ? 'var(--err)' : 'var(--s4)'}`,

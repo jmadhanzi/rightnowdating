@@ -121,3 +121,11 @@ CREATE TABLE IF NOT EXISTS city_leaderboard_weekly (
   avatar_emoji   VARCHAR(10) NOT NULL,
   PRIMARY KEY (city, week_start, rank)
 );
+
+-- Add weekly billing period to subscriptions
+ALTER TABLE subscriptions
+  DROP CONSTRAINT IF EXISTS subscriptions_billing_period_check;
+
+ALTER TABLE subscriptions
+  ADD CONSTRAINT subscriptions_billing_period_check
+  CHECK (billing_period IN ('weekly', 'monthly', 'annual'));

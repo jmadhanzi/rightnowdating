@@ -41,3 +41,39 @@ export function signUpload(folder = 'rightnow/profiles'): {
     folder,
   };
 }
+
+/**
+ * Upload a Buffer directly to Cloudinary (used for server-side voice note uploads).
+ * Returns the secure delivery URL.
+ */
+export async function uploadBuffer(
+  buffer: Buffer,
+  options: {
+    folder:         string;
+    resource_type?: 'image' | 'video' | 'raw' | 'auto';
+    public_id?:     string;
+    overwrite?:     boolean;
+    format?:        string;
+    transformation?: Record<string, unknown>[];
+  },
+): Promise<string> {
+  const c = ensureConfigured();
+
+  return new Promise<string>((resolve, reject) => {
+    const uploadStream = c.uploader.upload_stream(
+      {
+        folder:         options.folder,
+        resource_type:  options.resource_type ?? 'auto',
+        public_id:      options.public_id,
+        overwrite:      options.overwrite ?? false,
+        format:         options.format,
+        transformation: options.transformation,
+      },
+      (err, result) => {
+        if (err || !result) return reject(err ?? new Error('Upload failed'));
+        resolve(result.secure_url);
+      },
+    );
+    uploadStream.end(buffer);
+  });
+}

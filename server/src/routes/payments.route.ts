@@ -21,13 +21,13 @@ const SUBSCRIPTION_TRIAL_DAYS = 3;
 const BOOST_DURATION_MS = 60 * 60 * 1000;
 
 const createSubBody = z.object({
-  plan: z.enum(['plus', 'vip']),
-  period: z.enum(['monthly', 'annual']),
+  plan:   z.enum(['plus', 'vip']),
+  period: z.enum(['weekly', 'monthly', 'annual']),
 });
 const confirmSubBody = z.object({
   paymentMethodId: z.string().min(1),
-  plan: z.enum(['plus', 'vip']),
-  period: z.enum(['monthly', 'annual']),
+  plan:            z.enum(['plus', 'vip']),
+  period:          z.enum(['weekly', 'monthly', 'annual']),
 });
 function subStatus(stripeStatus: Stripe.Subscription.Status): string {
   // Map Stripe statuses onto our allowed set.

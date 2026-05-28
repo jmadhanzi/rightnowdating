@@ -1,213 +1,170 @@
-/* Concentric pulse rings on a live pin. */
-@keyframes pring {
-  0% {
-    transform: scale(0.7);
-    opacity: 0.8;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
+/* ============================================================
+   RIGHTNOW — animation system
+   ALL motion is wrapped in prefers-reduced-motion: no-preference.
+   Users who need reduced motion get instant opacity transitions.
+   WCAG 2.3.3 (AAA) compliant.
+   ============================================================ */
+
+/* ── Reduced-motion baseline ───────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration:   0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration:  0.001ms !important;
+    scroll-behavior:      auto !important;
   }
 }
 
-/* Status dot ping. */
-@keyframes ping {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
+/* ── All keyframes inside no-preference guard ──────────────── */
+@media (prefers-reduced-motion: no-preference) {
 
-/* Breathing dot. */
-@keyframes dp {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
+  /* Concentric pulse rings on a live pin. */
+  @keyframes pring {
+    0%   { transform: scale(0.7);  opacity: 0.8; }
+    100% { transform: scale(2.4);  opacity: 0;   }
   }
-  50% {
-    opacity: 0.35;
-    transform: scale(0.65);
-  }
-}
 
-/* Match-reveal bloom. */
-@keyframes bloom {
-  0% {
-    transform: scale(0.25);
-    opacity: 0;
+  /* Status dot ping. */
+  @keyframes ping {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2); opacity: 0;   }
   }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
 
-/* Cards rising into view. */
-@keyframes fup {
-  0% {
-    transform: translateY(32px);
-    opacity: 0;
+  /* Breathing dot. */
+  @keyframes dp {
+    0%, 100% { opacity: 1;    transform: scale(1);    }
+    50%       { opacity: 0.35; transform: scale(0.65); }
   }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
 
-/* GO LIVE button glow pulse. */
-@keyframes gp {
-  0%,
-  100% {
-    box-shadow: 0 0 18px 2px var(--glow);
+  /* Match-reveal bloom. */
+  @keyframes bloom {
+    0%   { transform: scale(0.25); opacity: 0; }
+    100% { transform: scale(1);    opacity: 1; }
   }
-  50% {
-    box-shadow: 0 0 48px 12px var(--glow);
-  }
-}
 
-/* Slide-up overlay. */
-@keyframes su {
-  0% {
-    transform: translateY(100%);
+  /* Cards rising into view. */
+  @keyframes fup {
+    0%   { transform: translateY(32px); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
   }
-  100% {
-    transform: translateY(0);
-  }
-}
 
-/* Toast slide-in from the right. */
-@keyframes tin {
-  0% {
-    transform: translateX(120%);
-    opacity: 0;
+  /* GO LIVE button glow pulse. */
+  @keyframes gp {
+    0%, 100% { box-shadow: 0 0 18px  2px var(--glow); }
+    50%       { box-shadow: 0 0 48px 12px var(--glow); }
   }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
 
-/* Error shake. */
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
+  /* Slide-up overlay. */
+  @keyframes su {
+    0%   { transform: translateY(100%); }
+    100% { transform: translateY(0);    }
   }
-  20% {
-    transform: translateX(-7px);
-  }
-  40% {
-    transform: translateX(7px);
-  }
-  60% {
-    transform: translateX(-5px);
-  }
-  80% {
-    transform: translateX(5px);
-  }
-}
 
-/* Utility classes */
-.anim-pring {
-  animation: pring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
-}
-.anim-ping {
-  animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-.anim-dp {
-  animation: dp 1.5s ease-in-out infinite;
-}
-.anim-bloom {
-  animation: bloom 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.anim-fup {
-  animation: fup 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.anim-gp {
-  animation: gp 2.4s ease-in-out infinite;
-}
-.anim-su {
-  animation: su 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.anim-shake {
-  animation: shake 0.4s ease-in-out both;
-}
-.anim-tin {
-  animation: tin 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
+  /* Toast slide-in from the right. */
+  @keyframes tin {
+    0%   { transform: translateX(120%); opacity: 0; }
+    100% { transform: translateX(0);    opacity: 1; }
+  }
 
-/* Onboarding step transitions. */
-@keyframes stepin {
-  0% {
-    transform: translateX(60px);
-    opacity: 0;
+  /* Error shake. */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0);  }
+    20%       { transform: translateX(-7px); }
+    40%       { transform: translateX(7px);  }
+    60%       { transform: translateX(-5px); }
+    80%       { transform: translateX(5px);  }
   }
-  100% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-@keyframes stepout {
-  0% {
-    transform: translateX(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(-60px);
-    opacity: 0;
-  }
-}
-.step-in {
-  animation: stepin 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
-.step-out {
-  animation: stepout 0.38s cubic-bezier(0.4, 0, 0.2, 1) both;
-}
 
-/* Gentle float (boosted pin gold ring). */
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0) scale(1);
+  /* Onboarding step transitions. */
+  @keyframes stepin {
+    0%   { transform: translateX(60px);  opacity: 0; }
+    100% { transform: translateX(0);     opacity: 1; }
   }
-  50% {
-    transform: translateY(-3px) scale(1.08);
+  @keyframes stepout {
+    0%   { transform: translateX(0);     opacity: 1; }
+    100% { transform: translateX(-60px); opacity: 0; }
   }
-}
-.anim-float {
-  animation: float 2.4s ease-in-out infinite;
-}
 
-/* Scan line sweeping along an edge. */
-@keyframes scan {
-  0% {
-    transform: translateX(-100%);
+  /* Gentle float (boosted pin gold ring). */
+  @keyframes float {
+    0%, 100% { transform: translateY(0)   scale(1);    }
+    50%       { transform: translateY(-3px) scale(1.08); }
   }
-  100% {
-    transform: translateX(100%);
-  }
-}
-.anim-scan {
-  animation: scan 2.6s linear infinite;
-}
 
-/* Skeleton shimmer. */
-@keyframes shimmer {
-  0% {
-    background-position: -400px 0;
+  /* Scan line sweeping along an edge. */
+  @keyframes scan {
+    0%   { transform: translateX(-100%); }
+    100% { transform: translateX(100%);  }
   }
-  100% {
-    background-position: 400px 0;
+
+  /* Skeleton shimmer. */
+  @keyframes shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position:  400px 0; }
   }
-}
+
+  /* Number slot-machine (new number slides in from below). */
+  @keyframes slotUp {
+    0%   { transform: translateY(100%); opacity: 0; }
+    100% { transform: translateY(0);    opacity: 1; }
+  }
+
+  /* Countdown flip (seconds digit only). */
+  @keyframes flip {
+    0%   { transform: rotateX(0deg);    }
+    50%  { transform: rotateX(-90deg);  }
+    100% { transform: rotateX(0deg);    }
+  }
+
+  /* Particle burst radiate out. */
+  @keyframes radiate {
+    0%   { transform: translate(0, 0) scale(1);   opacity: 1; }
+    100% { transform: translate(var(--dx), var(--dy)) scale(0); opacity: 0; }
+  }
+
+  /* Progress dot stretch into a pill. */
+  @keyframes dotstretch {
+    0%   { width: 8px; }
+    50%  { width: 22px; }
+    100% { width: 8px; }
+  }
+
+} /* end prefers-reduced-motion: no-preference */
+
+/* ── Utility animation classes ─────────────────────────────── */
+/* These work regardless of preference: the @media guard above
+   collapses duration to 0.001ms, making them instant rather
+   than removing the class or disabling the element. */
+.anim-pring  { animation: pring  2s   cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite; }
+.anim-ping   { animation: ping   1.6s cubic-bezier(0, 0, 0.2, 1) infinite; }
+.anim-dp     { animation: dp     1.5s ease-in-out infinite; }
+.anim-bloom  { animation: bloom  0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-fup    { animation: fup    0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-gp     { animation: gp     2.4s ease-in-out infinite; }
+.anim-su     { animation: su     0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-shake  { animation: shake  0.4s ease-in-out both; }
+.anim-tin    { animation: tin    0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-float  { animation: float  2.4s ease-in-out infinite; }
+.anim-scan   { animation: scan   2.6s linear infinite; }
+.anim-slotup { animation: slotUp 0.2s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-flip   { animation: flip   0.12s ease-in-out both; }
+
+.step-in     { animation: stepin  0.38s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.step-out    { animation: stepout 0.38s cubic-bezier(0.4, 0, 0.2, 1) both; }
+
+/* Skeleton shimmer */
 .skeleton {
   background: linear-gradient(90deg, var(--s2) 25%, var(--s3) 37%, var(--s2) 63%);
   background-size: 800px 100%;
   animation: shimmer 1.4s ease-in-out infinite;
   border-radius: 8px;
+}
+
+/* ── Focus ring utility ─────────────────────────────────────── */
+/* Applied to every interactive element for keyboard navigation */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--hot);
+  outline-offset: 2px;
 }

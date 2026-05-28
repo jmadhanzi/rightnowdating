@@ -153,7 +153,7 @@ export default function GoLiveScreen(): React.JSX.Element {
   return (
     <div
       className="flex min-h-screen flex-col"
-      style={{ background: 'var(--s0)', color: 'var(--tx)', paddingBottom: 'var(--nav-h)' }}
+      style={{ background: 'var(--s0)', color: 'var(--tx)', paddingBottom: 'calc(var(--nav-h) + env(safe-area-inset-bottom))' }}
     >
       <header
         className="sticky top-0 z-30 flex items-center justify-between px-5"
@@ -434,8 +434,8 @@ export default function GoLiveScreen(): React.JSX.Element {
           onClick={() => setNeighborhoodMode(false)}
         >
           <div
-            className="anim-su w-full rounded-t-3xl p-6"
-            style={{ background: 'var(--s1)' }}
+            className="anim-su w-full rounded-t-3xl px-6 pb-10 pt-6"
+            style={{ background: 'var(--s1)', paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <p className="mb-1 font-bold" style={{ color: 'var(--tx)' }}>

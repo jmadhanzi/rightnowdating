@@ -1,0 +1,32 @@
+
+/* ── Safe-area utility ──────────────────────────────────────────────── */
+/* Apply to every sticky/fixed bottom bar so it clears the home indicator
+   on iPhone 14/15 Pro (34pt). This one class fixes the most common
+   mobile UX gap across all screens.                                     */
+.sticky-bottom-cta {
+  position: sticky;
+  bottom: 0;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(8, 8, 8, 0.97);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 0.5px solid var(--s3);
+  z-index: 20;
+}
+
+/* Screen-reader-only utility (used for accessible labels on visual elements) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Scrollbar hiding (mobile maps) ─────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

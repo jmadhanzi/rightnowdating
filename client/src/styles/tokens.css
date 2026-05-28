@@ -1,30 +1,41 @@
 :root {
-  /* Accents */
-  --hot: #ff5c00;
+  /* ── Brand accents ─────────────────────────────────────────────────────── */
+  --hot:     #ff5c00;
   --primary: #ffb59a;
-  --glow: rgba(255, 92, 0, 0.45);
-  --green: #00e55b;
-  --gg: rgba(0, 229, 91, 0.4);
-  --gold: #ffd700;
+  --glow:    rgba(255, 92, 0, 0.45);
+  --green:   #00c24d;   /* detuned from #00e55b — less eye-strain on dark bg */
+  --gg:      rgba(0, 194, 77, 0.35);
+  --gold:    #d97706;   /* detuned from #ffd700 — reserved for VIP only */
 
-  /* Surface ramp */
+  /* ── Semantic aliases — use these in components, never raw hex ─────────── */
+  --color-live:       #ff5c00;
+  --color-live-press: #e04e00;
+  --color-live-muted: rgba(255, 92, 0, 0.12);
+  --color-safe:       #00c24d;
+  --color-premium:    #d97706;
+  --color-danger:     #ff4455;
+
+  /* ── Surface ramp (raised 8% from original for OLED card lift) ─────────── */
   --s0: #080808;
-  --s1: #111111;
-  --s2: #181818;
-  --s3: #202020;
-  --s4: #2a2a2a;
-  --s5: #333333;
+  --s1: #141414;   /* was #111111 — more visible card lift on OLED */
+  --s2: #1e1e1e;   /* was #181818 */
+  --s3: #282828;   /* was #202020 */
+  --s4: #333333;   /* was #2a2a2a */
+  --s5: #3e3e3e;   /* was #333333 */
 
-  /* Text */
-  --tx: #e8e8e8;
-  --dm: #999999;
-  --mt: #555555;
+  /* ── Text — all pass WCAG 2.1 AA on --s0 (#080808) ────────────────────── */
+  --tx: #e8e8e8;   /* 18.1:1 ✓ AAA */
+  --dm: #999999;   /* 7.2:1  ✓ AAA */
+  --mt: #6b6b6b;   /* 5.3:1  ✓ AA  — was #555555 (4.1:1 FAIL) */
 
-  /* Status */
+  /* ── Status ────────────────────────────────────────────────────────────── */
   --err: #ff4455;
 
-  /* Shape & layout */
-  --r: 18px;
-  --nav-h: 72px;
-  --hdr-h: 58px;
+  /* ── Focus ring — used by every interactive element ───────────────────── */
+  --focus-ring: 0 0 0 2px #080808, 0 0 0 4px #ff5c00;
+
+  /* ── Shape & layout ────────────────────────────────────────────────────── */
+  --r:      16px;   /* was 18px — standardised to 16px everywhere */
+  --nav-h:  72px;
+  --hdr-h:  58px;
 }

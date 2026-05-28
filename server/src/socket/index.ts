@@ -680,6 +680,98 @@ export function createSocketServer(httpServer: HttpServer): RNServer {
         guard(socket, 'typing:start', () => handleTyping(io, socket, payload)),
       );
 
+      // ── Group chat events (Duo Mode) ─────────────────────────────────────
+      socket.on('group:join', (payload: { matchId: string }) =>
+        guard(socket, 'group:join', async () => {
+          const { matchId } = payload;
+          const userId = socket.data.userId;
+          // Verify membership
+          const { rows } = await pool.query<{ user_id: string }>(
+            'SELECT user_id FROM group_match_members WHERE group_match_id = $1 AND user_id = $2',
+            [matchId, userId],
+          );
+          if (!rows[0]) return;
+          // Join the room so they receive group messages
+          await socket.join(`group:${matchId}`);
+          // Send member list
+          const members = await pool.query<{
+            user_id: string;
+            display_name: string;
+            age: number;
+            avatar_emoji: string;
+          }>(
+            `SELECT gmm.user_id, p.display_name, p.age, p.avatar_emoji
+               FROM group_match_members gmm
+               JOIN profiles p ON p.id = gmm.user_id
+              WHERE gmm.group_match_id = $1`,
+            [matchId],
+          );
+          socket.emit('group:match', {
+            matchId,
+            type: 'double_date',
+            members: members.rows.map((r) => ({
+              userId: r.user_id,
+              displayName: r.display_name,
+              age: r.age,
+              avatarEmoji: r.avatar_emoji,
+            })),
+          });
+        }),
+      );
+
+      socket.on('group:message:send', (payload: { matchId: string; content: string }) =>
+        guard(socket, 'group:message:send', async () => {
+          const { matchId, content } = payload;
+          const userId = socket.data.userId;
+          const trimmed = content?.trim().slice(0, 1000);
+          if (!trimmed) return;
+          // Verify membership
+          const check = await pool.query(
+            'SELECT 1 FROM group_match_members WHERE group_match_id = $1 AND user_id = $2',
+            [matchId, userId],
+          );
+          if (!check.rowCount) return;
+          // Persist
+          const { rows } = await pool.query<{ id: string; created_at: string }>(
+            `INSERT INTO group_messages (group_match_id, sender_id, content)
+             VALUES ($1, $2, $3) RETURNING id, created_at`,
+            [matchId, userId, trimmed],
+          );
+          const msg = rows[0]!;
+          // Broadcast to group room
+          io.to(`group:${matchId}`).emit('group:message:received', {
+            groupMatchId: matchId,
+            id:           msg.id,
+            senderId:     userId,
+            content:      trimmed,
+            createdAt:    msg.created_at,
+          });
+        }),
+      );
+
+      socket.on('group:typing:start', (payload: { matchId: string }) =>
+        guard(socket, 'group:typing:start', async () => {
+          const profile = await pool.query<{ display_name: string }>(
+            'SELECT display_name FROM profiles WHERE id = $1',
+            [socket.data.userId],
+          );
+          socket.to(`group:${payload.matchId}`).emit('group:typing:start', {
+            groupMatchId: payload.matchId,
+            userId:       socket.data.userId,
+            displayName:  profile.rows[0]?.display_name ?? 'Someone',
+          });
+        }),
+      );
+
+      socket.on('group:typing:stop', (payload: { matchId: string }) =>
+        guard(socket, 'group:typing:stop', () => {
+          socket.to(`group:${payload.matchId}`).emit('group:typing:stop', {
+            groupMatchId: payload.matchId,
+            userId:       socket.data.userId,
+          });
+        }),
+      );
+
       // ── Duo sparks ───────────────────────────────────────────────────────
       socket.on(
         'duo:spark',
