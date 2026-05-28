@@ -263,8 +263,9 @@ function DuoTab(): React.JSX.Element {
                   </Button>
                   <button
                     type="button"
+                    aria-label="End duo partnership"
                     onClick={() => void handleEnd()}
-                    className="text-xs"
+                    className="text-xs focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:rounded"
                     style={{ color: 'var(--mt)' }}
                   >
                     End
@@ -273,8 +274,9 @@ function DuoTab(): React.JSX.Element {
               ) : (
                 <button
                   type="button"
+                  aria-label="Cancel duo invite"
                   onClick={() => void handleEnd()}
-                  className="text-xs"
+                  className="text-xs focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:rounded"
                   style={{ color: 'var(--mt)' }}
                 >
                   Cancel
@@ -529,8 +531,9 @@ function OpenNightsTab(): React.JSX.Element {
         </span>
         <button
           type="button"
+          aria-label="Host an Open Night at your table"
           onClick={() => setShowCreate(true)}
-          className="rounded-full px-3 py-1 text-xs font-bold"
+          className="rounded-full px-3 py-1 text-xs font-bold focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
           style={{ background: 'var(--hot)', color: '#fff' }}
         >
           + Host
@@ -798,7 +801,7 @@ function CreateOpenNightSheet({
           <h2 className="font-display text-2xl font-extrabold italic" style={{ color: 'var(--gold)' }}>
             Host an Open Night
           </h2>
-          <button type="button" onClick={onClose} className="text-xl" style={{ color: 'var(--mt)' }}>✕</button>
+          <button type="button" aria-label="Close" onClick={onClose} className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:rounded" style={{ color: 'var(--mt)' }}>✕</button>
         </div>
 
         {/* Venue name */}

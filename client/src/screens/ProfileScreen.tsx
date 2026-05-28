@@ -144,7 +144,7 @@ export default function ProfileScreen(): React.JSX.Element {
           backdropFilter: 'blur(16px)',
         }}
       >
-        <button type="button" onClick={() => navigate(-1)} className="text-xl">
+        <button type="button" aria-label="Go back" onClick={() => navigate(-1)} className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center">
           ←
         </button>
         <span
@@ -155,8 +155,10 @@ export default function ProfileScreen(): React.JSX.Element {
         </span>
         <button
           type="button"
+          aria-label={isEditing ? 'Save profile changes' : 'Edit profile'}
+          aria-pressed={isEditing}
           onClick={() => setIsEditing((e) => !e)}
-          className="text-sm font-bold uppercase"
+          className="text-sm font-bold uppercase focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded px-2 py-1"
           style={{ color: 'var(--hot)' }}
         >
           {isEditing ? 'Save' : 'Edit'}
@@ -175,8 +177,9 @@ export default function ProfileScreen(): React.JSX.Element {
           <button
             type="button"
             disabled={!isEditing}
+            aria-label={isEditing ? 'Change your avatar emoji' : 'Avatar emoji — enter edit mode to change'}
             onClick={() => isEditing && setEmojiOpen(true)}
-            className="flex items-center justify-center rounded-full"
+            className="flex items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
             style={{
               width: 120,
               height: 120,

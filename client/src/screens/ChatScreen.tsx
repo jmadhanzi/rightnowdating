@@ -195,7 +195,7 @@ export default function ChatScreen(): React.JSX.Element {
         </button>
         <span className="text-2xl">{match?.other.emoji ?? '🧑'}</span>
         <div className="flex-1">
-          <p className="font-bold leading-tight">{match?.other.displayName ?? 'Chat'}</p>
+          <h1 className="font-bold leading-tight text-base">{match?.other.displayName ?? 'Chat'}</h1>
           <p className="text-xs" style={{ color: 'var(--green)' }}>
             {statusText}
           </p>

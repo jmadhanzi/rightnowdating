@@ -59,13 +59,13 @@ export default function ChatsScreen(): React.JSX.Element {
         >
           ☰
         </button>
-        <span
+        <h1
           className="font-display text-xl font-extrabold italic tracking-tight"
           style={{ color: 'var(--hot)' }}
-          aria-label="RIGHTNOW app"
+          aria-label="RIGHTNOW — your chats"
         >
           RIGHTNOW
-        </span>
+        </h1>
         <button
           type="button"
           aria-label="Search chats"

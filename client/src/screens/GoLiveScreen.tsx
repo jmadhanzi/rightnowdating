@@ -164,15 +164,20 @@ export default function GoLiveScreen(): React.JSX.Element {
           borderBottom: '1px solid var(--s3)',
         }}
       >
-        <button type="button" onClick={() => navigate('/profile')} className="text-xl">
+        <button
+          type="button"
+          aria-label="Go to profile"
+          onClick={() => navigate('/profile')}
+          className="text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center justify-center"
+        >
           👤
         </button>
-        <span
+        <h1
           className="font-display text-xl font-extrabold italic tracking-tight"
           style={{ color: 'var(--hot)' }}
         >
           RIGHTNOW
-        </span>
+        </h1>
         <div className="min-w-[64px] text-right">
           {mySession && <LiveBadge showTimer timeLeft={liveLeft} />}
         </div>
@@ -213,22 +218,29 @@ export default function GoLiveScreen(): React.JSX.Element {
         </div>
 
         {/* Vibe selector */}
-        <div className="flex justify-between gap-2">
+        <div
+          className="flex justify-between gap-2"
+          role="radiogroup"
+          aria-label="Select tonight's vibe"
+        >
           {GO_LIVE_VIBES.map((v) => {
             const active = vibe === v;
             return (
               <button
                 key={v}
                 type="button"
+                role="radio"
+                aria-checked={active}
+                aria-label={`${VIBES[v].label} vibe`}
                 onClick={() => setVibe(v)}
-                className="flex flex-1 flex-col items-center gap-1 rounded-xl py-3 active:scale-95"
+                className="flex flex-1 flex-col items-center gap-1 rounded-xl py-3 active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
                 style={{
                   background: active ? 'rgba(255,92,0,0.15)' : 'var(--s2)',
                   border: `1px solid ${active ? 'var(--hot)' : 'var(--s4)'}`,
                   color: active ? 'var(--hot)' : 'var(--dm)',
                 }}
               >
-                <span className="text-2xl">{VIBES[v].emoji}</span>
+                <span className="text-2xl" aria-hidden="true">{VIBES[v].emoji}</span>
                 <span className="text-[11px] font-semibold">{VIBES[v].label}</span>
               </button>
             );
@@ -334,7 +346,9 @@ export default function GoLiveScreen(): React.JSX.Element {
               type="button"
               onClick={locked ? () => navigate('/upgrade') : handlePress}
               disabled={loading}
-              className={locked ? '' : 'anim-gp'}
+              aria-label={locked ? 'Upgrade to go live' : mySession ? `Currently live — ${formatMMSS(liveLeft)} remaining` : 'Go live now'}
+              aria-pressed={mySession ? true : undefined}
+              className={locked ? 'focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]' : `anim-gp focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]`}
               style={{
                 position: 'relative',
                 width: 142,
@@ -386,6 +400,8 @@ export default function GoLiveScreen(): React.JSX.Element {
         {!mySession && (
           <div
             className="mx-auto flex max-w-xs rounded-full p-1"
+            role="radiogroup"
+            aria-label="Select how long you want to be live"
             style={{ background: 'var(--s2)', border: '1px solid var(--s4)' }}
           >
             {WINDOWS.map((w) => {
@@ -394,8 +410,11 @@ export default function GoLiveScreen(): React.JSX.Element {
                 <button
                   key={w.value}
                   type="button"
+                  role="radio"
+                  aria-checked={active}
+                  aria-label={`${w.label} live window`}
                   onClick={() => setWindowMinutes(w.value)}
-                  className="flex-1 rounded-full py-2 text-sm font-bold"
+                  className="flex-1 rounded-full py-2 text-sm font-bold focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
                   style={{
                     background: active
                       ? 'linear-gradient(135deg, var(--hot), #ff8c00)'

@@ -520,6 +520,7 @@ function WingmanDashboard(): React.JSX.Element {
             <button
               type="button"
               onClick={shareViaWhatsApp}
+              aria-label="Share wingman link via WhatsApp"
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold active:scale-95"
               style={{ background: 'rgba(37,211,102,0.15)', color: '#25d366', border: '1px solid rgba(37,211,102,0.3)' }}
             >
@@ -529,6 +530,7 @@ function WingmanDashboard(): React.JSX.Element {
             <button
               type="button"
               onClick={shareViaMessages}
+              aria-label="Share wingman link via iMessage"
               className="flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold active:scale-95"
               style={{ background: 'rgba(0,122,255,0.12)', color: '#007aff', border: '1px solid rgba(0,122,255,0.25)' }}
             >

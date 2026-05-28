@@ -82,13 +82,18 @@ export default function ReferralScreen(): React.JSX.Element {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--s0)', color: 'var(--tx)' }}>
+    <main className="min-h-screen pb-[env(safe-area-inset-bottom)]" style={{ background: 'var(--s0)', color: 'var(--tx)' }}>
       {/* Hero */}
       <div
         className="px-6 pb-6 pt-14"
         style={{ background: 'linear-gradient(180deg, rgba(255,92,0,0.25), transparent)' }}
       >
-        <button type="button" onClick={() => navigate(-1)} className="mb-3 text-xl">
+        <button
+          type="button"
+          aria-label="Go back"
+          onClick={() => navigate(-1)}
+          className="mb-3 text-xl focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)] rounded min-w-[44px] min-h-[44px] flex items-center"
+        >
           ←
         </button>
         <h1
@@ -204,12 +209,13 @@ export default function ReferralScreen(): React.JSX.Element {
             </Button>
           </div>
           <div className="mt-3 grid grid-cols-4 gap-2">
-            {(['tiktok', 'instagram', 'sms', 'twitter'] as const).map((p) => (
+          {(['tiktok', 'instagram', 'sms', 'twitter'] as const).map((p) => (
               <button
                 key={p}
                 type="button"
+                aria-label={`Share via ${p === 'twitter' ? 'more options' : p}`}
                 onClick={() => share(p)}
-                className="rounded-xl py-2 text-xs font-semibold capitalize"
+                className="rounded-xl py-2 text-xs font-semibold capitalize focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--s0)]"
                 style={{
                   background: 'var(--s2)',
                   border: '1px solid var(--s4)',
@@ -281,6 +287,6 @@ export default function ReferralScreen(): React.JSX.Element {
           </div>
         </div>
       )}
-    </div>
+    </main>
   );
 }

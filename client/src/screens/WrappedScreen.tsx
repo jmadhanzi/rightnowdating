@@ -83,9 +83,9 @@ export default function WrappedScreen(): React.JSX.Element {
         }}
       >
         <button type="button" onClick={() => navigate(-1)} aria-label="Back" className="text-xl">←</button>
-        <span className="font-display text-xl font-extrabold italic" style={{ color: 'var(--hot)' }}>
+        <h1 className="font-display text-xl font-extrabold italic" style={{ color: 'var(--hot)' }}>
           ⚡ Your RIGHTNOW
-        </span>
+        </h1>
         <div style={{ width: 32 }} />
       </header>
 
@@ -217,11 +217,12 @@ function WeeklyView({ data, onShare }: { data: WeeklyWrapped; onShare: () => voi
       <button
         type="button"
         onClick={onShare}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold active:scale-95"
-        style={{ background: 'var(--s1)', border: '1px solid var(--s3)', color: 'var(--tx)' }}
-      >
-        <span>📤</span>
-        Share to Stories
+        aria-label="Copy weekly recap to clipboard to share"
+      className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
+      style={{ background: 'var(--s1)', border: '1px solid var(--s3)', color: 'var(--tx)' }}
+    >
+      <span aria-hidden="true">📤</span>
+      Share to Stories
       </button>
 
       {/* Detailed breakdown */}
@@ -304,11 +305,12 @@ function MonthlyView({ data, onShare }: { data: MonthlyWrapped; onShare: () => v
       <button
         type="button"
         onClick={onShare}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold active:scale-95"
-        style={{ background: 'var(--s1)', border: '1px solid var(--s3)', color: 'var(--tx)' }}
-      >
-        <span>📤</span>
-        Share your month
+        aria-label="Copy monthly recap to clipboard to share"
+      className="flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-sm font-bold active:scale-95 focus-visible:ring-2 focus-visible:ring-[var(--hot)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--s0)]"
+      style={{ background: 'var(--s1)', border: '1px solid var(--s3)', color: 'var(--tx)' }}
+    >
+      <span aria-hidden="true">📤</span>
+      Share your month
       </button>
 
       {/* Badges */}
