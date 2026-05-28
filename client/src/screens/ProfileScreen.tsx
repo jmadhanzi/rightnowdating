@@ -8,7 +8,7 @@ import BottomNav from '@/components/BottomNav';
 import VibeChip from '@/components/VibeChip';
 import ProfileSkeleton from '@/components/skeletons/ProfileSkeleton';
 import { useToast } from '@/hooks/useToast';
-import { getProfile, getReferralStats, getMyVouches, updateProfile, type WingmanVouch } from '@/services/api';
+import { getProfile, getReferralStats, getMyVouches, getProfileCompletion, getMyStreak, updateProfile, type WingmanVouch, type CompletionScore, type StreakInfo } from '@/services/api';
 import { VIBES } from '@/utils/vibes';
 
 const ALL_VIBES = Object.keys(VIBES) as Vibe[];
@@ -43,6 +43,8 @@ export default function ProfileScreen(): React.JSX.Element {
   const [bar, setBar] = useState(0);
   const [referralCount, setReferralCount] = useState(0);
   const [vouches, setVouches] = useState<WingmanVouch[]>([]);
+  const [completion, setCompletion] = useState<CompletionScore | null>(null);
+  const [streak, setStreak] = useState<StreakInfo | null>(null);
   const [editPref, setEditPref] = useState<null | 'radius' | 'age' | 'city'>(null);
   const [prefValue, setPrefValue] = useState('');
 
@@ -58,6 +60,12 @@ export default function ProfileScreen(): React.JSX.Element {
       .catch(() => undefined);
     getMyVouches()
       .then((r) => setVouches(r.vouches))
+      .catch(() => undefined);
+    getProfileCompletion()
+      .then(setCompletion)
+      .catch(() => undefined);
+    getMyStreak()
+      .then(setStreak)
       .catch(() => undefined);
   }, [toast]);
 
@@ -343,6 +351,94 @@ export default function ProfileScreen(): React.JSX.Element {
             }}
           />
         </div>
+
+        {/* Profile Completion Score — highest priority if incomplete */}
+        {completion && completion.score < 100 && (
+          <div
+            className="rounded-2xl p-4"
+            style={{ background: 'var(--s1)', border: '1px solid var(--s3)' }}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--dm)' }}>
+                Profile strength
+              </p>
+              <span
+                className="rounded-full px-2 py-0.5 text-xs font-bold"
+                style={{
+                  background: completion.score >= 80 ? 'rgba(0,194,77,0.15)' : 'rgba(255,92,0,0.15)',
+                  color: completion.score >= 80 ? 'var(--green)' : 'var(--hot)',
+                }}
+              >
+                {completion.score}%
+              </span>
+            </div>
+            <div className="mb-3 h-2 overflow-hidden rounded-full" style={{ background: 'var(--s3)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${completion.score}%`,
+                  background: `linear-gradient(90deg, var(--hot), ${completion.score >= 80 ? 'var(--green)' : '#ff8c00'})`,
+                }}
+              />
+            </div>
+            {completion.nextAction && (
+              <button
+                type="button"
+                onClick={() => navigate(completion.nextAction!.route)}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left active:scale-95"
+                style={{ background: 'rgba(255,92,0,0.06)', border: '1px solid rgba(255,92,0,0.2)' }}
+              >
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--hot)' }}>
+                    +{completion.nextAction.points} pts: {completion.nextAction.label}
+                  </p>
+                  <p className="text-[10px]" style={{ color: 'var(--mt)' }}>
+                    {completion.nextAction.impact}
+                  </p>
+                </div>
+                <span style={{ color: 'var(--hot)' }}>→</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Night Streak card */}
+        {streak && streak.currentStreak > 0 && (
+          <button
+            type="button"
+            onClick={() => navigate('/wrapped?tab=streak')}
+            className="flex w-full items-center gap-3 rounded-2xl p-4"
+            style={{ background: 'rgba(255,92,0,0.06)', border: '1px solid rgba(255,92,0,0.25)' }}
+          >
+            <span className="text-3xl">🔥</span>
+            <div className="flex-1 text-left">
+              <p className="font-bold" style={{ color: 'var(--hot)' }}>
+                {streak.currentStreak}-night streak
+              </p>
+              <p className="text-xs" style={{ color: 'var(--dm)' }}>
+                {streak.totalLiveNights} total nights live · Best: {streak.longestStreak}
+              </p>
+            </div>
+            <span style={{ color: 'var(--hot)' }}>→</span>
+          </button>
+        )}
+
+        {/* RIGHTNOW Stats nav */}
+        <button
+          type="button"
+          onClick={() => navigate('/wrapped')}
+          className="flex w-full items-center justify-between rounded-2xl p-4"
+          style={{ background: 'var(--s1)', border: '1px solid var(--s3)' }}
+        >
+          <span className="flex items-center gap-3">
+            <span className="text-2xl">📊</span>
+            <span className="text-left">
+              <span className="block font-bold" style={{ color: 'var(--tx)' }}>Your RIGHTNOW</span>
+              <span className="text-xs" style={{ color: 'var(--dm)' }}>Weekly recap, streak, city leaderboard</span>
+            </span>
+          </span>
+          <span style={{ color: 'var(--hot)' }}>→</span>
+        </button>
 
         {/* Referral shortcut */}
         <button

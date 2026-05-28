@@ -474,3 +474,95 @@ export async function requestJoinOpenNight(payload: {
 export async function respondToOpenNightRequest(requestId: string, accept: boolean): Promise<void> {
   await api.post('/open-nights/respond', { requestId, accept });
 }
+
+// --- Growth Features (Streaks, Wrapped, Completion, Leaderboard) ---
+export interface StreakInfo {
+  currentStreak: number;
+  longestStreak: number;
+  lastLiveNight: string | null;
+  totalLiveNights: number;
+  isActive: boolean;
+}
+
+export interface WeeklyWrapped {
+  weekStart: string;
+  nightsLive: number;
+  sparksSent: number;
+  sparksReceived: number;
+  matchesMade: number;
+  datesConfirmed: number;
+  avgMatchTimeMins: number | null;
+  topVibe: string | null;
+  headline: string;
+  shareText: string;
+}
+
+export interface MonthlyWrapped {
+  monthStart: string;
+  nightsLive: number;
+  sparksSent: number;
+  sparksReceived: number;
+  matchesMade: number;
+  datesConfirmed: number;
+  totalDistanceMiles: number;
+  streakPeak: number;
+  topVibe: string | null;
+  personalityType: string;
+  personalityEmoji: string;
+  headline: string;
+  subline: string;
+  shareText: string;
+  badgeLines: string[];
+}
+
+export interface CompletionScore {
+  score: number;
+  breakdown: {
+    photo: boolean; bio: boolean; voice: boolean;
+    vibes: boolean; verified: boolean; wingman: boolean;
+  };
+  nextAction: {
+    label: string; route: string; impact: string; points: number;
+  } | null;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  displayName: string;
+  avatarEmoji: string;
+  nightsLive: number;
+  matchesMade: number;
+  userId: string;
+}
+
+export async function getMyStreak(): Promise<StreakInfo> {
+  const { data } = await api.get('/streak/me');
+  return data;
+}
+
+export async function getWeeklyWrapped(weekStart?: string): Promise<WeeklyWrapped> {
+  const { data } = await api.get('/wrapped/weekly', { params: weekStart ? { weekStart } : {} });
+  return data;
+}
+
+export async function getMonthlyWrapped(monthStart?: string): Promise<MonthlyWrapped> {
+  const { data } = await api.get('/wrapped/monthly', { params: monthStart ? { monthStart } : {} });
+  return data;
+}
+
+export async function getProfileCompletion(): Promise<CompletionScore> {
+  const { data } = await api.get('/profile/completion');
+  return data;
+}
+
+export async function getCityLeaderboard(city: string): Promise<{ leaderboard: LeaderboardEntry[]; city: string }> {
+  const { data } = await api.get(`/leaderboard/${encodeURIComponent(city)}`);
+  return data;
+}
+
+export async function updateNotificationPrefs(prefs: {
+  peak_hour_alerts?: boolean; streak_reminders?: boolean; weekly_wrapped?: boolean;
+  idle_match_nudge?: boolean; city_heating_up?: boolean; preferred_alert_hour?: number;
+}): Promise<void> {
+  await api.put('/notification-prefs', prefs);
+}

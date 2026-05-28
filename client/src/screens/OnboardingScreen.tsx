@@ -987,6 +987,7 @@ function Step5({
   liveNow: number;
   onGoLive: () => void;
 }): React.JSX.Element {
+  const navigate = useNavigate();
   const stats = [
     { value: String(liveNow), color: 'var(--hot)', label: 'Live now' },
     { value: '4.8★', color: 'var(--green)', label: 'Avg rating' },
@@ -1037,8 +1038,29 @@ function Step5({
         ))}
       </div>
 
+      {/* Photo verification nudge — high trust signal */}
+      <button
+        type="button"
+        onClick={() => navigate('/profile?verify=1')}
+        className="mt-5 w-full rounded-2xl p-4 text-left active:scale-95"
+        style={{ background: 'rgba(0,194,77,0.08)', border: '1px solid rgba(0,194,77,0.35)' }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">🛡️</span>
+          <div className="flex-1">
+            <p className="font-bold text-sm" style={{ color: 'var(--green)' }}>
+              Get photo verified — 40% more sparks
+            </p>
+            <p className="text-xs" style={{ color: 'var(--dm)' }}>
+              Quick selfie check · Takes 30 seconds · Tinder does it too
+            </p>
+          </div>
+          <span style={{ color: 'var(--green)' }}>→</span>
+        </div>
+      </button>
+
       <div
-        className="mt-6 w-full rounded-2xl p-4 text-left text-sm"
+        className="mt-3 w-full rounded-2xl p-4 text-left text-sm"
         style={{
           background: 'rgba(0,229,91,0.1)',
           border: '1px solid var(--green)',
@@ -1053,6 +1075,9 @@ function Step5({
         <Button fullWidth size="lg" onClick={onGoLive}>
           GO LIVE Now
         </Button>
+        <p className="mt-2 text-xs" style={{ color: 'var(--mt)' }}>
+          Going live tonight starts your night streak 🔥
+        </p>
       </div>
     </div>
   );

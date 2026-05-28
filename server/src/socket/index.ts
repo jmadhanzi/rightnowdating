@@ -27,6 +27,7 @@ import {
 } from '../services/sparks.service.js';
 import { recordReferredFirstDate } from '../services/referrals.service.js';
 import { fireDuoSpark, checkDuoMutualMatch, getMyDuo } from '../services/duo.service.js';
+import { recordGoLiveForStreak } from '../services/streak.service.js';
 import type { RNServer, RNSocket, SocketData } from './types.js';
 import { setIO } from './emitter.js';
 
@@ -233,6 +234,9 @@ async function handleGoLive(io: RNServer, socket: RNSocket, payload: GoLivePaylo
   }
 
   scheduleSessionExpiry(io, { sessionId, userId, city, expiresAt });
+
+  // Record streak (non-blocking, failure is silent)
+  void recordGoLiveForStreak(userId).catch(() => undefined);
 
   // ── New-user priority: proactively ping all live nearby users ─────────
   // If this is a brand-new user (< 24h), send a targeted in-app notification

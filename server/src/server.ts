@@ -3,7 +3,15 @@ import { buildApp } from './app.js';
 import { createSocketServer } from './socket/index.js';
 import { verifyDatabase, closeDatabase } from './db/index.js';
 import { verifyRedis, closeRedis } from './db/redis.js';
-import { closeQueues, scheduleMonthlyCredits, scheduleIdleNudges } from './services/queue.service.js';
+import {
+  closeQueues,
+  scheduleMonthlyCredits,
+  scheduleIdleNudges,
+  schedulePeakHourAlerts,
+  scheduleWeeklyWrapped,
+  scheduleStreakRisk,
+  scheduleLeaderboard,
+} from './services/queue.service.js';
 import { ensureStripeCatalog } from './services/stripe.service.js';
 import { startDemandCron, stopDemandCron } from './services/demandPrediction.service.js';
 import { setupWebPush } from './services/notifications.service.js';
@@ -32,6 +40,18 @@ async function start(): Promise<void> {
     );
     await scheduleIdleNudges().catch((err) =>
       app.log.warn({ err }, 'failed to schedule idle match nudges'),
+    );
+    await schedulePeakHourAlerts().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule peak hour alerts'),
+    );
+    await scheduleWeeklyWrapped().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule weekly wrapped'),
+    );
+    await scheduleStreakRisk().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule streak risk'),
+    );
+    await scheduleLeaderboard().catch((err) =>
+      app.log.warn({ err }, 'failed to schedule leaderboard'),
     );
   } catch (err) {
     app.log.error({ err }, 'Failed to start server');

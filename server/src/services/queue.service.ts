@@ -6,6 +6,8 @@ import { redis } from '../db/redis.js';
 import { emitToUser, emitToCity } from '../socket/emitter.js';
 import { sendSms } from './twilio.service.js';
 import { sendToUser, sendIdleMatchNudge } from './notifications.service.js';
+import { sendPeakHourAlerts, deliverWeeklyWrapped, sendCompatibilityPreviews } from './smartNotifications.service.js';
+import { sendStreakAtRiskNotifications, refreshCityLeaderboard } from './streak.service.js';
 
 export interface CheckinJob {
   matchId: string;
@@ -32,6 +34,10 @@ export const notificationQueue = new Queue<NotificationJob>('notification', env.
 export const boostExpiryQueue = new Queue<BoostExpiryJob>('boost-expiry', env.REDIS_URL);
 export const creditGrantQueue = new Queue<Record<string, never>>('credit-grant', env.REDIS_URL);
 export const idleNudgeQueue = new Queue<Record<string, never>>('idle-nudge', env.REDIS_URL);
+export const peakHourQueue = new Queue<Record<string, never>>('peak-hour', env.REDIS_URL);
+export const weeklyWrappedQueue = new Queue<Record<string, never>>('weekly-wrapped', env.REDIS_URL);
+export const streakQueue = new Queue<Record<string, never>>('streak-risk', env.REDIS_URL);
+export const leaderboardQueue = new Queue<Record<string, never>>('leaderboard', env.REDIS_URL);
 
 const PENDING_TTL_SECONDS = 600; // 10 minutes to confirm a check-in
 const ESCALATE_DELAY_MS = 10 * 60 * 1000;
@@ -230,6 +236,10 @@ notificationQueue.process(processNotification);
 boostExpiryQueue.process('expire', processBoostExpiry);
 creditGrantQueue.process('grant', processMonthlyCredits);
 idleNudgeQueue.process('scan', processIdleMatchNudges);
+peakHourQueue.process('fire', () => sendPeakHourAlerts());
+weeklyWrappedQueue.process('deliver', () => deliverWeeklyWrapped());
+streakQueue.process('risk', () => sendStreakAtRiskNotifications());
+leaderboardQueue.process('refresh', () => refreshCityLeaderboard());
 
 /** Add a 1-hour delayed boost-expiry job. */
 export async function scheduleBoostExpiry(
@@ -248,6 +258,26 @@ export async function scheduleMonthlyCredits(): Promise<void> {
 /** Run idle match nudge scan every hour. Idempotent. */
 export async function scheduleIdleNudges(): Promise<void> {
   await idleNudgeQueue.add({}, { repeat: { cron: '0 * * * *' }, jobId: 'idle-match-nudge-scan' });
+}
+
+/** Fire peak-hour alerts every hour — the handler itself checks if it's a live night hour. */
+export async function schedulePeakHourAlerts(): Promise<void> {
+  await peakHourQueue.add({}, { repeat: { cron: '0 * * * *' }, jobId: 'peak-hour-alerts' });
+}
+
+/** Weekly wrapped delivery — every Sunday 7pm UTC. */
+export async function scheduleWeeklyWrapped(): Promise<void> {
+  await weeklyWrappedQueue.add({}, { repeat: { cron: '0 19 * * 0' }, jobId: 'weekly-wrapped-delivery' });
+}
+
+/** Streak at-risk reminders — every Thursday 6pm UTC. */
+export async function scheduleStreakRisk(): Promise<void> {
+  await streakQueue.add({}, { repeat: { cron: '0 18 * * 4' }, jobId: 'streak-at-risk' });
+}
+
+/** City leaderboard refresh — every Sunday midnight UTC. */
+export async function scheduleLeaderboard(): Promise<void> {
+  await leaderboardQueue.add({}, { repeat: { cron: '5 0 * * 0' }, jobId: 'leaderboard-refresh' });
 }
 
 // --- Global failure logging -------------------------------------------------
@@ -285,5 +315,9 @@ export async function closeQueues(): Promise<void> {
     boostExpiryQueue.close(),
     creditGrantQueue.close(),
     idleNudgeQueue.close(),
+    peakHourQueue.close(),
+    weeklyWrappedQueue.close(),
+    streakQueue.close(),
+    leaderboardQueue.close(),
   ]);
 }

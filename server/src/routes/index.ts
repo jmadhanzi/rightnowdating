@@ -15,6 +15,7 @@ import { aiRoutes } from './ai.route.js';
 import { chatRoutes } from './chats.route.js';
 import { wingmanRoutes } from './wingman.route.js';
 import { duoRoutes } from './duo.route.js';
+import { growthRoutes } from './growth.route.js';
 
 /**
  * Registers all HTTP routes. Feature routers are mounted here; the versioned
@@ -38,6 +39,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(chatRoutes);
   await app.register(wingmanRoutes);
   await app.register(duoRoutes);
+  await app.register(growthRoutes);
 
   // Versioned application API (reserved).
   await app.register(

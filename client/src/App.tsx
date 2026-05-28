@@ -19,6 +19,7 @@ const ReferralScreen = lazy(() => import('@/screens/ReferralScreen'));
 const PaywallScreen = lazy(() => import('@/screens/PaywallScreen'));
 const WingmanScreen = lazy(() => import('@/screens/WingmanScreen'));
 const DuoScreen = lazy(() => import('@/screens/DuoScreen'));
+const WrappedScreen = lazy(() => import('@/screens/WrappedScreen'));
 
 function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -63,6 +64,7 @@ export default function App(): React.JSX.Element {
                 <Route path="/upgrade" element={<PaywallScreen />} />
                 <Route path="/wingman" element={<WingmanScreen />} />
                 <Route path="/duo" element={<DuoScreen />} />
+                <Route path="/wrapped" element={<WrappedScreen />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />
