@@ -21,6 +21,9 @@ const WingmanScreen = lazy(() => import('@/screens/WingmanScreen'));
 const DuoScreen = lazy(() => import('@/screens/DuoScreen'));
 const WrappedScreen = lazy(() => import('@/screens/WrappedScreen'));
 const GroupChatScreen = lazy(() => import('@/screens/GroupChatScreen'));
+const CompanionOnboardingScreen = lazy(() => import('@/screens/CompanionOnboardingScreen'));
+const CompanionChatScreen = lazy(() => import('@/screens/CompanionChatScreen'));
+const MemoryBookScreen = lazy(() => import('@/screens/MemoryBookScreen'));
 
 function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -67,6 +70,9 @@ export default function App(): React.JSX.Element {
                 <Route path="/duo" element={<DuoScreen />} />
                 <Route path="/wrapped" element={<WrappedScreen />} />
                 <Route path="/group/:matchId" element={<GroupChatScreen />} />
+                <Route path="/companion/onboard" element={<CompanionOnboardingScreen />} />
+                <Route path="/companion/chat" element={<CompanionChatScreen />} />
+                <Route path="/companion/memory-book" element={<MemoryBookScreen />} />
               </Route>
 
               <Route path="*" element={<Navigate to="/" replace />} />

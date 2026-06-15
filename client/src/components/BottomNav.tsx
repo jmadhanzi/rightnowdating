@@ -1,11 +1,11 @@
 import { NavLink } from 'react-router-dom';
 
 const ITEMS = [
-  { to: '/live',    label: 'Go Live',  icon: '⚡', color: 'var(--hot)' },
-  { to: '/map',     label: 'Map',      icon: '🗺️',  color: 'var(--hot)' },
-  { to: '/duo',     label: 'Duo',      icon: '🤝', color: '#60a5fa'   },
-  { to: '/chats',   label: 'Chats',    icon: '💬', color: 'var(--hot)' },
-  { to: '/profile', label: 'Profile',  icon: '👤', color: 'var(--hot)' },
+  { to: '/live',           label: 'Go Live',   icon: '⚡', color: 'var(--hot)' },
+  { to: '/map',            label: 'Map',        icon: '🗺️',  color: 'var(--hot)' },
+  { to: '/companion/chat', label: 'Companion',  icon: '🔮', color: '#7c3aed'   },
+  { to: '/chats',          label: 'Chats',      icon: '💬', color: 'var(--hot)' },
+  { to: '/profile',        label: 'Profile',    icon: '👤', color: 'var(--hot)' },
 ] as const;
 
 export default function BottomNav(): React.JSX.Element {

@@ -581,3 +581,112 @@ export async function uploadVoiceNote(file: File): Promise<{ url: string }> {
   });
   return data;
 }
+
+// =============================================================================
+// EchoBond Companion API
+// =============================================================================
+
+import type { CompanionProfile, CompanionMessage, EpisodicMemory } from '@/store/useCompanionStore';
+
+export interface OnboardingAnswers {
+  companionName: string;
+  companionType: 'friend' | 'mentor' | 'support';
+  userName: string;
+  interests: string[];
+  goals: string[];
+  feelingsAbout: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  stageAdvanced: boolean;
+  milestone?: string;
+  companionName: string;
+}
+
+interface BackendCompanionState {
+  profile: {
+    companionName: string;
+    companionType: string;
+    relationshipStage: number;
+    sessionCount: number;
+    moodToday: string;
+    lifeThreads: Array<{ id: string; title: string; progress: number }>;
+    attachmentScore: number;
+    firstSessionAt: string | null;
+    lastSessionAt: string | null;
+  };
+  relationshipState: {
+    milestones: Array<{ id: string; label: string; achievedAt: string }>;
+    insideJokes: Array<{ id: string; joke: string }>;
+  };
+  recentMemories: EpisodicMemory[];
+  longTermMemory: Array<{ memoryKey: string; memoryValue: string; memoryType: string }>;
+}
+
+function mapBackendState(raw: BackendCompanionState): CompanionProfile {
+  return {
+    companionName: raw.profile.companionName,
+    companionType: raw.profile.companionType,
+    relationshipStage: raw.profile.relationshipStage as CompanionProfile['relationshipStage'],
+    sessionCount: raw.profile.sessionCount,
+    moodToday: raw.profile.moodToday,
+    lifeThreads: raw.profile.lifeThreads,
+    attachmentScore: raw.profile.attachmentScore,
+    firstSessionAt: raw.profile.firstSessionAt,
+    lastSessionAt: raw.profile.lastSessionAt,
+    milestones: (raw.relationshipState.milestones ?? []).map((m) => ({
+      type: m.id,
+      reachedAt: m.achievedAt,
+      label: m.label,
+    })),
+    insideJokes: (raw.relationshipState.insideJokes ?? []).map((j) => ({
+      text: j.joke,
+      createdAt: '',
+    })),
+    longTermMemory: (raw.longTermMemory ?? []).map((m) => ({
+      key: m.memoryKey,
+      value: m.memoryValue,
+      type: m.memoryType,
+    })),
+    recentMemories: raw.recentMemories ?? [],
+    isOnboarded: raw.profile.sessionCount > 0 || (raw.longTermMemory?.length ?? 0) > 0,
+  };
+}
+
+export async function getCompanionProfile(): Promise<CompanionProfile> {
+  const { data } = await api.get<BackendCompanionState>('/companion/profile');
+  return mapBackendState(data);
+}
+
+export async function runCompanionOnboarding(answers: OnboardingAnswers): Promise<CompanionProfile> {
+  const { data } = await api.post<{ ok: boolean; state: BackendCompanionState }>('/companion/onboard', answers);
+  return mapBackendState(data.state);
+}
+
+export async function sendCompanionMessage(message: string): Promise<ChatResponse> {
+  const { data } = await api.post<ChatResponse>('/companion/message', { message });
+  return data;
+}
+
+export async function getCompanionMessages(
+  limit = 50,
+  before?: string,
+): Promise<{ messages: CompanionMessage[] }> {
+  const params: Record<string, string | number> = { limit };
+  if (before) params.before = before;
+  const { data } = await api.get<{ messages: CompanionMessage[] }>('/companion/messages', {
+    params,
+  });
+  return data;
+}
+
+export async function getCompanionMemoryBook(): Promise<{ memories: EpisodicMemory[] }> {
+  const { data } = await api.get<{ memories: EpisodicMemory[] }>('/companion/memory-book');
+  return data;
+}
+
+export async function getCompanionProactiveMessage(): Promise<{ message: string | null }> {
+  const { data } = await api.get<{ message: string | null }>('/companion/proactive');
+  return data;
+}
